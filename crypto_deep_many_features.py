@@ -51,7 +51,7 @@ def load_data_from_yaml(filename):
     
 def update_crypto_data(filename, crypto_name, price, error):
     crypto_data = load_data_from_yaml(filename)
-    crypto_data[crypto_name] = {'price': [float(price)], 'error': [float(error)], "time": [datetime.now()]}
+    crypto_data[crypto_name] = {'price': [float(x) for x in price], 'error': [float(error)], "time": [datetime.now()]}
     with open(filename, 'w') as file:
         yaml.dump(crypto_data, file)
 
@@ -69,6 +69,9 @@ class changePricePredictor:
         self.batch_size = batch_size
         crypt_name = crypt + '-USD'
         temp = yf.Ticker(crypt_name)
+        if len(temp.history(period = 'max', interval="1d")) < 1:
+            print(f'{crypt_name} has no data. No connection to yfinance')
+            exit()
         price_data = temp.history(period = 'max', interval="1d")
         print(Fore.GREEN,f'NUMBER OF SAMPLES FOR {crypt_name}: {len(price_data)}',Style.RESET_ALL)
         self.features = ['Close','Open', 'High', 'Low','Volume', 'Dividends', 'Stock Splits',
@@ -297,19 +300,25 @@ class changePricePredictor:
     
     def plot_pct_change(self):
         last_week = self.data['Close'].iloc[-14:]
-        tomorrow = last_week[-1] + (last_week[-1] * self.y_pred)
+        price_val = last_week[-1]
+        save_price = [] 
+        for val in self.y_pred:
+            tomorrow = price_val + (price_val * val)
+            price_val = tomorrow
+            save_price.append(tomorrow)
+
         self.data.index = pd.to_datetime(self.data.index)
-        # Calculate the next day's datetime
-        next_day_datetime = self.data.index[-1] + pd.Timedelta(days=1)
-        print(next_day_datetime)
-        last_week[next_day_datetime] = tomorrow
+        # Calculate the next days datetime
+        start_datetime = self.data.index[-1] + pd.Timedelta(days=1)
+        next_days = [start_datetime + pd.Timedelta(days=i) for i in range(len(self.y_pred))]
+
         plt.figure()
         plt.plot(last_week.index[:-1], last_week[:-1], color='blue', marker='o', label='Price')
-        plt.plot(last_week.index[-1], last_week[-1], color='green', marker='o', label='Predicted Price')
+        plt.plot(next_days, save_price, color='green', marker='o', label='Predicted Price')
         plt.plot(last_week.index[-2:], last_week[-2:], color='blue')  # Connect the last two points with a blue line
         plt.xlabel('Date')
         plt.ylabel('Price')
-        plt.title(f'{self.crypt_name} price for {datetime.now() + timedelta(days=1)} is {tomorrow[0]}')
+        plt.title(f'{self.crypt_name} price for the next {len((self.y_pred))} days')
         plt.xticks(rotation=45)
         plt.legend()
         plt.tight_layout()
@@ -331,8 +340,14 @@ class changePricePredictor:
 
     def save_previous_days_data(self):
         filename = 'crypto_pre_error.yaml'
-        tomorrow = self.data['Close'].iloc[-1:].values + (self.data['Close'].iloc[-1:].values * self.y_pred)
-        update_crypto_data(filename, self.crypt_name, tomorrow[0], self.loss_output)
+        save_price = [] 
+        price_val = self.data['Close'].iloc[-1:].values
+        for val in self.y_pred:
+            tomorrow = price_val + (price_val * val)
+            price_val = tomorrow
+            save_price.append(tomorrow) 
+        # tomorrow = self.data['Close'].iloc[-1:].values + (self.data['Close'].iloc[-1:].values * self.y_pred)
+        update_crypto_data(filename, self.crypt_name, save_price, self.loss_output)
         if os.path.exists('predictions'):
             os.mkdir('predictions')
         # np.savetxt(os.path.join(os.getcwd(),'predictions',f'{self.crypt_name}_prediction.txt'), self.y_pred[0][0], fmt='%.6f')
@@ -358,18 +373,18 @@ def main():
             try:
                 changePricePredictor(crypt=name,
                                     n_features=10, 
-                                    n_steps=60, 
-                                    n_outputs=1, 
+                                    n_steps=128, 
+                                    n_outputs=30, 
                                     n_epochs=500, 
-                                    batch_size=128).run_analysis()
+                                    batch_size=256).run_analysis()
             except:
                 print(f'too many nans for {name}')
     else:
         changePricePredictor(crypt=argv[1],
                             n_features=10, 
-                            n_steps=60, 
-                            n_outputs=1, 
+                            n_steps=128, 
+                            n_outputs=30, 
                             n_epochs=500, 
-                            batch_size=128).run_analysis()
+                            batch_size=256).run_analysis()
 if __name__ == "__main__":
     main()

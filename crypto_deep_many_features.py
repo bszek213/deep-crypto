@@ -14,8 +14,13 @@ from sys import argv
 from tqdm import tqdm
 from keras_tuner import RandomSearch
 from datetime import datetime
-# from keras_tuner.engine.hyperparameters import HyperParameters
 import yaml
+
+"""
+TODO: 
+-Make README
+-Make function to test if output is correct
+"""
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh'])
     model = tf.keras.models.Sequential([
@@ -327,6 +332,7 @@ class changePricePredictor:
         save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_tomorrow_price.png')
         plt.savefig(save_path,dpi=350)
         plt.close()
+
     def plot_results(self):
         pred = pd.read_csv(f'{self.crypt_name}_pred.csv')
         # plt.plot(self.data['Close'], label='Actual')
@@ -352,16 +358,38 @@ class changePricePredictor:
             os.mkdir('predictions')
         # np.savetxt(os.path.join(os.getcwd(),'predictions',f'{self.crypt_name}_prediction.txt'), self.y_pred[0][0], fmt='%.6f')
 
+    def check_output(self):
+        with open('crypto_pre_error.yaml', 'r') as file:
+            data = yaml.safe_load(file)
+        time_output = [data[self.crypt_name]['time'][0] + timedelta(days=i) for i in range(1, len(data[self.crypt_name]['price']))]
+        time_output.insert(0, data[self.crypt_name]['time'][0])
+        plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
+        plt.plot(self.data.index[-21:],self.data['Close'].iloc[-21:],marker='.',markersize=10,label='Actual')
+        plt.title(self.crypt_name)
+        plt.xlabel('Date')
+        plt.ylabel('Price')
+        plt.grid(axis='y')
+        plt.legend()
+        plt.tight_layout()
+        if not os.path.exists('figures'):
+            os.mkdir('figures')
+        save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_predicted_vs_actual.png')
+        plt.savefig(save_path,dpi=350)
+        plt.close()
+
     def run_analysis(self):
-        # Prepare data for training
-        X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)
-        self.train_model(X_train, y_train, X_val, y_val)
-        curr_loss = self.evaluate_model(X_test,y_test)
-        # Make prediction for tomorrow
-        prediction, last_date, test = self.predict(self.data)
-        print(curr_loss)
-        self.plot_pct_change()
-        self.save_previous_days_data()
+        if os.path.exists('crypto_pre_error.yaml'):
+            self.check_output()
+        else:
+            # Prepare data for training
+            X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)
+            self.train_model(X_train, y_train, X_val, y_val)
+            curr_loss = self.evaluate_model(X_test,y_test)
+            # Make prediction for tomorrow
+            prediction, last_date, test = self.predict(self.data)
+            print(curr_loss)
+            self.plot_pct_change()
+            self.save_previous_days_data()
 
 def main():
     if argv[1] == 'all':

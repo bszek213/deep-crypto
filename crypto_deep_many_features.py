@@ -243,7 +243,7 @@ class changePricePredictor:
         data = np.concatenate((data_close, data_non_close), axis=1)
 
         #Predict the future after test data
-        if argv[2] == "test":
+        if argv[2] == "test_future":
             # Make prediction on test data
             X_pred = np.array([data[-self.n_steps*2:-self.n_steps, :]])
             #pct-change
@@ -378,7 +378,7 @@ class changePricePredictor:
         plt.close()
 
     def run_analysis(self):
-        if os.path.exists('crypto_pre_error.yaml'):
+        if os.path.exists('crypto_pre_error.yaml') and argv[2] == "test":
             self.check_output()
         else:
             # Prepare data for training
@@ -398,20 +398,20 @@ def main():
                     'APE','MANA',"AVAX","ZEC","ICP","FLOW",
                     "EGLD","XTZ","LTC"]
         for name in tqdm(sorted(list_crypt)):
-            try:
+            # try:
                 changePricePredictor(crypt=name,
                                     n_features=10, 
                                     n_steps=128, 
-                                    n_outputs=30, 
+                                    n_outputs=7, 
                                     n_epochs=500, 
                                     batch_size=256).run_analysis()
-            except:
-                print(f'too many nans for {name}')
+            # except:
+            #     print(f'too many nans for {name}')
     else:
         changePricePredictor(crypt=argv[1],
                             n_features=10, 
                             n_steps=128, 
-                            n_outputs=30, 
+                            n_outputs=7, 
                             n_epochs=500, 
                             batch_size=256).run_analysis()
 if __name__ == "__main__":

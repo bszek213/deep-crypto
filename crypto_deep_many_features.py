@@ -207,7 +207,7 @@ class changePricePredictor:
             tuner = RandomSearch(
                 lambda hp: create_lstm_model(hp, self.n_steps, self.n_features, self.n_outputs),
                 objective='val_loss',
-                max_trials=20,
+                max_trials=40,
                 directory=f'{self.crypt_name}_lstm_hp',
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True
@@ -398,15 +398,15 @@ def main():
                     'APE','MANA',"AVAX","ZEC","ICP","FLOW",
                     "EGLD","XTZ","LTC"]
         for name in tqdm(sorted(list_crypt)):
-            # try:
+            try:
                 changePricePredictor(crypt=name,
                                     n_features=10, 
                                     n_steps=128, 
                                     n_outputs=7, 
                                     n_epochs=500, 
                                     batch_size=256).run_analysis()
-            # except:
-            #     print(f'too many nans for {name}')
+            except:
+                print(f'too many nans for {name}')
     else:
         changePricePredictor(crypt=argv[1],
                             n_features=10, 

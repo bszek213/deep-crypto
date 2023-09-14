@@ -23,9 +23,12 @@ TODO:
 """
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh'])
+    regularizer_strength = hp.Float('regularizer_strength', min_value=1e-6, max_value=1e-2, sampling='log')
+    regularizer = tf.keras.regularizers.l2(regularizer_strength)
     model = tf.keras.models.Sequential([
         tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=50, max_value=200, step=50),
                                                            activation=activation_choice, return_sequences=False,
+                                                           kernel_regularizer=regularizer,
                                                            input_shape=(n_steps, n_features))),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.Dense(n_outputs, activation="linear")
@@ -363,9 +366,17 @@ class changePricePredictor:
             data = yaml.safe_load(file)
         time_output = [data[self.crypt_name]['time'][0] + timedelta(days=i) for i in range(1, len(data[self.crypt_name]['price']))]
         time_output.insert(0, data[self.crypt_name]['time'][0])
+        #Remove everything except year month and day
+        time_output = [date.date() for date in time_output]
+        self.data.index = pd.to_datetime(self.data.index.date)
+        #find matching indices and get error
+        matching_indices = self.data.index[self.data.index.to_series().dt.floor('D').isin(time_output)]
+        matching_close_prices = self.data['Close'][matching_indices]
+        mape_error = mean_absolute_percentage_error(matching_close_prices.values,data[self.crypt_name]['price'][0:len(matching_close_prices)])
+        #Plot data
         plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
         plt.plot(self.data.index[-21:],self.data['Close'].iloc[-21:],marker='.',markersize=10,label='Actual')
-        plt.title(self.crypt_name)
+        plt.title(f'{self.crypt_name} MAPE: {round(mape_error*100,3)}%')
         plt.xlabel('Date')
         plt.ylabel('Price')
         plt.grid(axis='y')

@@ -15,6 +15,7 @@ from tqdm import tqdm
 from keras_tuner import RandomSearch
 from datetime import datetime
 import yaml
+from tensorflow.keras.callbacks import EarlyStopping
 
 """
 TODO: 
@@ -108,7 +109,7 @@ class changePricePredictor:
                                     'momentum_ppo_hist', 'momentum_pvo', 'momentum_pvo_signal',
                                     'momentum_pvo_hist', 'momentum_kama', 'others_dr', 'others_dlr',
                                     'others_cr']
-        self.non_close_features = ['Volume',
+        self.non_close_features = ['Volume','Open', 'High', 'Low',
                                     'volume_adi', 'volume_obv', 'volume_cmf', 'volume_fi', 'volume_em',
                                     'volume_sma_em', 'volume_vpt', 'volume_vwap', 'volume_mfi',
                                     'volume_nvi', 'volatility_bbm', 'volatility_bbh', 'volatility_bbl',
@@ -215,9 +216,11 @@ class changePricePredictor:
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True
             )
+            early_stopping = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
             tuner.search(x=X_train, y=y_train,
                     epochs=75,
-                    validation_data=(X_val, y_val))
+                    validation_data=(X_val, y_val),
+                    callbacks=[early_stopping])
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
             self.best_model = tuner.get_best_models(num_models=1)[0]
             print(f"Best Hyperparameters: {best_hps.values}")

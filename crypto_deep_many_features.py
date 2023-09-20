@@ -418,7 +418,7 @@ class changePricePredictor:
             plt.figure(figsize=(10, 6))
             plt.bar(crypto_names_sorted, errors_sorted)
             plt.xlabel("Cryptos")
-            plt.ylabel("Error")
+            plt.ylabel("MAPE")
             plt.title("Error by Crypto")
             plt.xticks(rotation=45, ha='right')
             # save the plot

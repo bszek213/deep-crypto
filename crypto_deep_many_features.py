@@ -376,6 +376,15 @@ class changePricePredictor:
         matching_indices = self.data.index[self.data.index.to_series().dt.floor('D').isin(time_output)]
         matching_close_prices = self.data['Close'][matching_indices]
         mape_error = mean_absolute_percentage_error(matching_close_prices.values,data[self.crypt_name]['price'][0:len(matching_close_prices)])
+        #write data to file
+        if os.path.exists("crypto_mape.yaml"):
+            with open("crypto_mape.yaml", 'r') as file:
+                err_data = yaml.safe_load(file)
+        else:
+            err_data = {}
+        err_data[self.crypt_name] = [float(mape_error)]
+        with open("crypto_mape.yaml", 'w') as file:
+            yaml.dump(err_data, file)
         #Plot data
         plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
         plt.plot(self.data.index[-21:],self.data['Close'].iloc[-21:],marker='.',markersize=10,label='Actual')
@@ -391,9 +400,35 @@ class changePricePredictor:
         plt.savefig(save_path,dpi=350)
         plt.close()
 
+    def plot_error(self):
+        if os.path.exists('crypto_mape.yaml'):
+            with open("crypto_mape.yaml", 'r') as file:
+                data = yaml.safe_load(file)
+
+            # Filter out data points with errors above 1
+            filtered_data = {crypt: error for crypt, error in data.items() if error[0] <= 1}
+            # Extract crypto names and errors
+            crypto_names = list(filtered_data.keys())
+            errors = [filtered_data[crypt][0] for crypt in crypto_names]
+            # Sort the filtered data in ascending order
+            sorted_data = sorted(zip(crypto_names, errors), key=lambda x: x[1])
+            # Extract sorted crypto names and errors
+            crypto_names_sorted, errors_sorted = zip(*sorted_data)
+            # Create a bar plot
+            plt.figure(figsize=(10, 6))
+            plt.bar(crypto_names_sorted, errors_sorted)
+            plt.xlabel("Cryptos")
+            plt.ylabel("Error")
+            plt.title("Error by Crypto")
+            plt.xticks(rotation=45, ha='right')
+            # save the plot
+            plt.tight_layout()
+            plt.savefig('error_plot.png',dpi=400)
+            plt.close()
     def run_analysis(self):
         if os.path.exists('crypto_pre_error.yaml') and argv[2] == "test":
             self.check_output()
+            self.plot_error()
         else:
             # Prepare data for training
             X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)

@@ -17,11 +17,6 @@ from datetime import datetime
 import yaml
 from tensorflow.keras.callbacks import EarlyStopping
 
-"""
-TODO: 
--Make README
--Make function to test if output is correct
-"""
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh'])
     regularizer_strength = hp.Float('regularizer_strength', min_value=1e-6, max_value=1e-2, sampling='log')
@@ -82,6 +77,11 @@ class changePricePredictor:
             print(f'{crypt_name} has no data. No connection to yfinance')
             exit()
         price_data = temp.history(period = 'max', interval="1d")
+        #change the date out of utc to mine
+        current_date = datetime.now().date()
+        new_index = pd.date_range(end=current_date, periods=len(price_data.index), freq='D')
+        price_data.index = new_index
+        
         print(Fore.GREEN,f'NUMBER OF SAMPLES FOR {crypt_name}: {len(price_data)}',Style.RESET_ALL)
         self.features = ['Close','Open', 'High', 'Low','Volume', 'Dividends', 'Stock Splits',
                                     'volume_adi', 'volume_obv', 'volume_cmf', 'volume_fi', 'volume_em',

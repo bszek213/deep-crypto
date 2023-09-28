@@ -211,7 +211,7 @@ class changePricePredictor:
             tuner = RandomSearch(
                 lambda hp: create_lstm_model(hp, self.n_steps, self.n_features, self.n_outputs),
                 objective='val_loss',
-                max_trials=40,
+                max_trials=50,
                 directory=f'{self.crypt_name}_lstm_hp',
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True
@@ -226,7 +226,13 @@ class changePricePredictor:
             print(f"Best Hyperparameters: {best_hps.values}")
             print(f'best model error: {self.best_model.evaluate(X_val, y_val)}')
             self.model = self.best_model
-            self.best_model.save(f"{self.crypt_name}_lstm_model.h5")
+            save_path = os.path.join(os.getcwd(),'model_loc')
+            if os.path.isdir(save_path):
+                print('path exists')
+            else:
+                os.mkdir('model_loc')
+            save_path = os.path.join(save_path,f"{self.crypt_name}_lstm_model.h5")
+            self.best_model.save(save_path)
 
     def evaluate_model(self, X_test, y_test):
         loss = self.model.evaluate(X_test, y_test)

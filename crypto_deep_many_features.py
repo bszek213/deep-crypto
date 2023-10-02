@@ -203,8 +203,14 @@ class changePricePredictor:
     #     return model
 
     def train_model(self, X_train, y_train, X_val, y_val):
-        if os.path.exists(f"{self.crypt_name}_lstm_model.h5"):
-            self.model = load_model(f"{self.crypt_name}_lstm_model.h5")
+        save_path = os.path.join(os.getcwd(),'model_loc')
+        if os.path.isdir(save_path):
+            print('path exists')
+        else:
+            os.mkdir('model_loc')
+        save_path = os.path.join(save_path,f"{self.crypt_name}_lstm_model.h5")
+        if os.path.exists(save_path):
+            self.model = load_model(save_path)
         else:
             # model = self.create_model()
             #TUNE LSTM

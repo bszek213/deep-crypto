@@ -19,12 +19,16 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh'])
-    regularizer_strength = hp.Float('regularizer_strength', min_value=1e-6, max_value=1e-2, sampling='log')
-    regularizer = tf.keras.regularizers.l2(regularizer_strength)
+    regularizer_strength_l1 = hp.Float('regularizer_strength_l1', min_value=1e-6, max_value=1e-2, sampling='log')
+    regularizer_strength_l2 = hp.Float('regularizer_strength_l2', min_value=1e-6, max_value=1e-2, sampling='log')
+    
+    regularizer_l1 = tf.keras.regularizers.l1(regularizer_strength_l1)
+    regularizer_l2 = tf.keras.regularizers.l2(regularizer_strength_l2)
+    
     model = tf.keras.models.Sequential([
         tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=50, max_value=200, step=25),
                                                            activation=activation_choice, return_sequences=False,
-                                                           kernel_regularizer=regularizer,
+                                                           kernel_regularizer=regularizer_l2, recurrent_regularizer=regularizer_l1,
                                                            input_shape=(n_steps, n_features))),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.Dense(n_outputs, activation="linear")
@@ -38,9 +42,10 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
     
     model.compile(optimizer=optimizer,
                   loss='mean_squared_error',
-                  metrics=['mean_squared_error']) #tf.keras.metrics.RootMeanSquaredError()
+                  metrics=['mean_squared_error'])
     
     return model
+
 
 def load_data_from_yaml(filename):
     try:
@@ -217,7 +222,7 @@ class changePricePredictor:
             tuner = RandomSearch(
                 lambda hp: create_lstm_model(hp, self.n_steps, self.n_features, self.n_outputs),
                 objective='val_loss',
-                max_trials=50,
+                max_trials=75,
                 directory=f'{self.crypt_name}_lstm_hp',
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True

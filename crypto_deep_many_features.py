@@ -16,7 +16,13 @@ from keras_tuner import RandomSearch
 from datetime import datetime
 import yaml
 from tensorflow.keras.callbacks import EarlyStopping
-
+from seaborn import regplot
+from scipy.stats import pearsonr
+"""
+TODO
+-add ability to remove features that do not follow a normal distribution
+-add correaltion plot that correlates data length and MAPE
+"""
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh'])
     regularizer_strength_l1 = hp.Float('regularizer_strength_l1', min_value=1e-6, max_value=1e-2, sampling='log')
@@ -168,6 +174,9 @@ class changePricePredictor:
 
         data_non_close = data[self.non_close_features]
         data_non_close = self.scaler2.fit_transform(data_non_close)
+        # df = pd.DataFrame(data_non_close)
+        # df.hist()
+        # plt.show()
         data = np.concatenate((data_close, data_non_close), axis=1)
 
         # Split data into input/output sequences
@@ -442,10 +451,32 @@ class changePricePredictor:
             plt.tight_layout()
             plt.savefig('error_plot.png',dpi=400)
             plt.close()
+
+    def correlate_len_error(self):
+        if os.path.exists("crypto_mape.yaml"):
+            with open("crypto_mape.yaml", 'r') as file:
+                err_data = yaml.safe_load(file)
+        price_len = []
+        error_val = []
+        for key, value in err_data.items():
+            if value[0] < 100:
+                print(f"Key: {key}, Value: {value}")
+                crypt_name = key + '-USD'
+                temp = yf.Ticker(crypt_name)
+                price_len.append(len(temp.history(period = 'max', interval="1d")))
+                error_val.append(value[0])
+        data = pd.DataFrame({"error":error_val,"price_len":price_len})
+        #plot
+        g = regplot(data,x='error',y='price_len')
+        print(f"Correlation between MAPE vs. Length of the Price Data: {pearsonr(data['error'],data['price_len'])}")
+        plt.show()            
+
     def run_analysis(self):
         if os.path.exists('crypto_pre_error.yaml') and argv[2] == "test":
             self.check_output()
             self.plot_error()
+        elif argv[2] == "correlate":
+            self.correlate_len_error()
         else:
             # Prepare data for training
             X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)
@@ -471,6 +502,8 @@ def main():
                                     n_outputs=7, 
                                     n_epochs=500, 
                                     batch_size=256).run_analysis()
+                if argv[2] == "correlate":
+                    break
             except:
                 print(f'too many nans for {name}')
     else:

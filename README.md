@@ -11,6 +11,8 @@ python3 crypto_deep_many_features.py all notest #perform training or create futu
 python3 crypto_deep_many_features.py BTC test #check output for individiual crypto, in this case BTC.
 python3 crypto_deep_many_features.py BTC notest #perform training or create future forecast for individual crypto, in this case BTC.
 ```
+### Correlated Features
+![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png)
 ### Forecasting error
 ![](https://github.com/bszek213/deep-crypto/blob/dev/error_plot.png)
 ## Contributing

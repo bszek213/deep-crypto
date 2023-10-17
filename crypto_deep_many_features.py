@@ -16,8 +16,8 @@ from keras_tuner import RandomSearch
 from datetime import datetime
 import yaml
 from tensorflow.keras.callbacks import EarlyStopping
-from seaborn import regplot
-from scipy.stats import pearsonr
+from seaborn import regplot, heatmap
+from scipy.stats import pearsonr, shapiro
 """
 TODO
 -add ability to remove features that do not follow a normal distribution
@@ -173,10 +173,26 @@ class changePricePredictor:
         # data_close = self.scaler1.fit_transform(data_close)
 
         data_non_close = data[self.non_close_features]
+        
+        #Remove correlated features
+        threshold = 0.95
+        data_non_close.corr()
+        correlation_matrix = data_non_close.corr()
+        mask = np.triu(np.ones(correlation_matrix.shape), k=1)
+        to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix[column] > threshold)]
+        print(f'Features to be removed: {to_drop}')
+        # Remove highly correlated features
+        data_non_close = data_non_close.drop(columns=to_drop)
+        # Create and save a heatmap plot
+        plt.figure(figsize=(10, 10))
+        heatmap(correlation_matrix, cmap="coolwarm", mask=mask)
+        plt.title("Correlation Heatmap")
+        plt.tight_layout()
+        plt.savefig("correlation_heatmap.png")
+        plt.close()
+
         data_non_close = self.scaler2.fit_transform(data_non_close)
-        # df = pd.DataFrame(data_non_close)
-        # df.hist()
-        # plt.show()
+
         data = np.concatenate((data_close, data_non_close), axis=1)
 
         # Split data into input/output sequences
@@ -465,10 +481,14 @@ class changePricePredictor:
                 temp = yf.Ticker(crypt_name)
                 price_len.append(len(temp.history(period = 'max', interval="1d")))
                 error_val.append(value[0])
-        data = pd.DataFrame({"error":error_val,"price_len":price_len})
+        data = pd.DataFrame({"MAPE":error_val,"data_len":price_len})
+        r_val, p_val = pearsonr(data['MAPE'],data['data_len'])
         #plot
-        g = regplot(data,x='error',y='price_len')
-        print(f"Correlation between MAPE vs. Length of the Price Data: {pearsonr(data['error'],data['price_len'])}")
+        g = regplot(data,x='MAPE',y='data_len')
+        plt.text(0.9, 0.9, f'r^2 = {r_val**2:.2f}\np = {p_val:.2e}', transform=g.transAxes, ha='center')
+        print(f"Correlation between MAPE vs. Length of the Price Data: {(r_val,p_val)}")
+        plt.tight_layout()
+        plt.savefig('correl_mape_data_len.png',dpi=400)
         plt.show()            
 
     def run_analysis(self):

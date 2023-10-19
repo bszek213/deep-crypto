@@ -175,12 +175,14 @@ class changePricePredictor:
         data_non_close = data[self.non_close_features]
         
         #Remove correlated features
-        threshold = 0.95
+        threshold = 0.90
         data_non_close.corr()
         correlation_matrix = data_non_close.corr()
-        mask = np.triu(np.ones(correlation_matrix.shape), k=1)
-        to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix[column] > threshold)]
+        mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
+        to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix.loc[column, mask[:, correlation_matrix.columns.get_loc(column)]] > threshold)]
         print(f'Features to be removed: {to_drop}')
+        #features to keep
+        self.non_close_features = [item for item in self.non_close_features if item not in to_drop]
         # Remove highly correlated features
         data_non_close = data_non_close.drop(columns=to_drop)
         # Create and save a heatmap plot
@@ -192,7 +194,6 @@ class changePricePredictor:
         plt.close()
 
         data_non_close = self.scaler2.fit_transform(data_non_close)
-
         data = np.concatenate((data_close, data_non_close), axis=1)
 
         # Split data into input/output sequences
@@ -247,7 +248,7 @@ class changePricePredictor:
             tuner = RandomSearch(
                 lambda hp: create_lstm_model(hp, self.n_steps, self.n_features, self.n_outputs),
                 objective='val_loss',
-                max_trials=75,
+                max_trials=30,
                 directory=f'{self.crypt_name}_lstm_hp',
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True

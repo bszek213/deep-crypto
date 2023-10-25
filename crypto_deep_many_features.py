@@ -470,11 +470,18 @@ class changePricePredictor:
             plt.close()
 
     def correlate_len_error(self):
+        #MAPE
         if os.path.exists("crypto_mape.yaml"):
             with open("crypto_mape.yaml", 'r') as file:
                 err_data = yaml.safe_load(file)
+        #PRED PRICE
+        if os.path.exists("crypto_pre_error.yaml"):
+            with open("crypto_pre_error.yaml", 'r') as file:
+                price_err = yaml.safe_load(file)
+
         price_len = []
         error_val = []
+        #MAPE vs. ERR correlate
         for key, value in err_data.items():
             if value[0] < 100:
                 print(f"Key: {key}, Value: {value}")
@@ -484,13 +491,36 @@ class changePricePredictor:
                 error_val.append(value[0])
         data = pd.DataFrame({"MAPE":error_val,"data_len":price_len})
         r_val, p_val = pearsonr(data['MAPE'],data['data_len'])
+
+        #PRED PRICE
+        crypt_7_day_pos_neg = {}
+        correct_classify = 0
+        total_classify = 0
+        for key, value in price_err.items():
+            crypt_name = key + '-USD'
+            temp = yf.Ticker(crypt_name)
+            price = temp.history(period=f'{str(self.n_outputs)}d')
+            if value['price'][0] < value['price'][-1]:
+                if (value['price'][0] < value['price'][-1]) and (price['Close'].iloc[0] < price['Close'].iloc[1]):
+                    crypt_7_day_pos_neg[key] = 1
+                    correct_classify += 1
+                else:
+                    crypt_7_day_pos_neg[key] = 0
+                total_classify +=1 
+                print(crypt_7_day_pos_neg)
+        print('========================================================')
+        print(f'PROPORTION CORRECT ON THOSE THAT THE MODEL PREDICTED WOULD BE POSITIVE: {(correct_classify / total_classify)*100}%')
         #plot
         g = regplot(data,x='MAPE',y='data_len')
         plt.text(0.9, 0.9, f'r^2 = {r_val**2:.2f}\np = {p_val:.2e}', transform=g.transAxes, ha='center')
         print(f"Correlation between MAPE vs. Length of the Price Data: {(r_val,p_val)}")
+        print('========================================================')
         plt.tight_layout()
         plt.savefig('correl_mape_data_len.png',dpi=400)
-        plt.show()            
+        plt.close()
+
+    def prediction_pos_neg(self,):
+        pass
 
     def run_analysis(self):
         if os.path.exists('crypto_pre_error.yaml') and argv[2] == "test":
@@ -516,7 +546,7 @@ def main():
                     'APE','MANA',"AVAX","ZEC","ICP","FLOW",
                     "EGLD","XTZ","LTC"]
         for name in tqdm(sorted(list_crypt)):
-            try:
+            # try:
                 changePricePredictor(crypt=name,
                                     n_features=10, 
                                     n_steps=128, 
@@ -525,8 +555,8 @@ def main():
                                     batch_size=256).run_analysis()
                 if argv[2] == "correlate":
                     break
-            except:
-                print(f'too many nans for {name}')
+            # except:
+            #     print(f'too many nans for {name}')
     else:
         changePricePredictor(crypt=argv[1],
                             n_features=10, 

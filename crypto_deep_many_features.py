@@ -546,7 +546,7 @@ def main():
                     'APE','MANA',"AVAX","ZEC","ICP","FLOW",
                     "EGLD","XTZ","LTC"]
         for name in tqdm(sorted(list_crypt)):
-            # try:
+            try:
                 changePricePredictor(crypt=name,
                                     n_features=10, 
                                     n_steps=128, 
@@ -555,8 +555,8 @@ def main():
                                     batch_size=256).run_analysis()
                 if argv[2] == "correlate":
                     break
-            # except:
-            #     print(f'too many nans for {name}')
+            except:
+                print(f'too many nans for {name}')
     else:
         changePricePredictor(crypt=argv[1],
                             n_features=10, 

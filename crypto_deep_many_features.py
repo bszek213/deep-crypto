@@ -490,6 +490,9 @@ class changePricePredictor:
                 price_len.append(len(temp.history(period = 'max', interval="1d")))
                 error_val.append(value[0])
         data = pd.DataFrame({"MAPE":error_val,"data_len":price_len})
+        data.set_index(pd.Index([key for key, value in err_data.items() if value[0] < 100]), inplace=True)
+        print('ERROR VS. MAPE DF')
+        print(data.sort_values(by=['data_len'],ascending=False))
         r_val, p_val = pearsonr(data['MAPE'],data['data_len'])
 
         #PRED PRICE

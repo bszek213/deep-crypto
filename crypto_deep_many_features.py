@@ -17,12 +17,8 @@ from datetime import datetime
 import yaml
 from tensorflow.keras.callbacks import EarlyStopping
 from seaborn import regplot, heatmap
-from scipy.stats import pearsonr, shapiro
-"""
-TODO
--add ability to remove features that do not follow a normal distribution
--add correaltion plot that correlates data length and MAPE
-"""
+from scipy.stats import pearsonr
+
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh'])
     regularizer_strength_l1 = hp.Float('regularizer_strength_l1', min_value=1e-6, max_value=1e-2, sampling='log')
@@ -32,7 +28,7 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
     regularizer_l2 = tf.keras.regularizers.l2(regularizer_strength_l2)
     
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=50, max_value=200, step=25),
+        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=2, max_value=50, step=2),
                                                            activation=activation_choice, return_sequences=False,
                                                            kernel_regularizer=regularizer_l2, recurrent_regularizer=regularizer_l1,
                                                            input_shape=(n_steps, n_features))),

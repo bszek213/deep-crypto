@@ -28,7 +28,7 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
     regularizer_l2 = tf.keras.regularizers.l2(regularizer_strength_l2)
     
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=2, max_value=50, step=2),
+        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=1, max_value=20, step=1),
                                                            activation=activation_choice, return_sequences=False,
                                                            kernel_regularizer=regularizer_l2, recurrent_regularizer=regularizer_l1,
                                                            input_shape=(n_steps, n_features))),

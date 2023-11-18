@@ -43,11 +43,10 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
         optimizer = tf.keras.optimizers.RMSprop(learning_rate=hp.Float('rmsprop_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
     
     model.compile(optimizer=optimizer,
-                  loss='mean_absolute_error',
-                  metrics=['mean_absolute_error'])
-    
-    return model
+                  loss='mean_squared_error',
+                  metrics=['mean_squared_error'])
 
+    return model
 
 def load_data_from_yaml(filename):
     try:
@@ -152,7 +151,7 @@ class changePricePredictor:
             volume='Volume',
             fillna=True
         )
-        print(self.data.columns)
+        # print(self.data.columns)
 
     def prepare_data(self, data):
         # Extract relevant features
@@ -558,8 +557,8 @@ def main():
                                     batch_size=256).run_analysis()
                 if argv[2] == "correlate":
                     break
-            except:
-                print(f'too many nans for {name}')
+            except Exception as e:
+                print(Fore.RED,Style.BRIGHT,f'{name} did not complete: {e}',Style.RESET_ALL)
     else:
         changePricePredictor(crypt=argv[1],
                             n_features=10, 

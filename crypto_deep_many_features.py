@@ -43,8 +43,8 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
         optimizer = tf.keras.optimizers.RMSprop(learning_rate=hp.Float('rmsprop_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
     
     model.compile(optimizer=optimizer,
-                  loss='mean_squared_error',
-                  metrics=['mean_squared_error'])
+                  loss='mean_absolute_error',
+                  metrics=['mean_absolute_error'])
     
     return model
 
@@ -256,8 +256,12 @@ class changePricePredictor:
                     callbacks=[early_stopping])
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
             self.best_model = tuner.get_best_models(num_models=1)[0]
-            print(f"Best Hyperparameters: {best_hps.values}")
-            print(f'best model error: {self.best_model.evaluate(X_val, y_val)}')
+            #write best hyperparameters to file
+            file_path = 'best_hp.txt'
+            content_to_append = f"Best Hyperparameters: {best_hps.values}"
+            with open(file_path, 'a') as file:
+                file.write(content_to_append + '\n')
+            #save model
             self.model = self.best_model
             save_path = os.path.join(os.getcwd(),'model_loc')
             if os.path.isdir(save_path):

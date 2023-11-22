@@ -255,6 +255,9 @@ class changePricePredictor:
                     callbacks=[early_stopping])
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
             self.best_model = tuner.get_best_models(num_models=1)[0]
+            #fit tuned model
+            self.best_model.fit(X_train, y_train, epochs=75, validation_data=(X_val, y_val),
+            callbacks=[early_stopping])
             #write best hyperparameters to file
             file_path = 'best_hp.txt'
             content_to_append = f"Best Hyperparameters: {best_hps.values}"

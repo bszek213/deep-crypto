@@ -430,9 +430,10 @@ class changePricePredictor:
         err_data[self.crypt_name] = [float(mape_error)]
         with open("crypto_mape.yaml", 'w') as file:
             yaml.dump(err_data, file)
+
         #Plot data
         plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
-        plt.plot(self.data.index[-21:],self.data['Close'].iloc[-21:],marker='.',markersize=10,label='Actual')
+        plt.plot(self.data.index[-21:].to_numpy(),self.data['Close'].iloc[-21:].to_numpy(),marker='.',markersize=10,label='Actual')
         plt.title(f'{self.crypt_name} MAPE: {round(mape_error*100,3)}% | data length: {len(self.data["Close"])} samples')
         plt.xlabel('Date')
         plt.ylabel('Price')

@@ -33,14 +33,17 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
                                                            kernel_regularizer=regularizer_l2, recurrent_regularizer=regularizer_l1,
                                                            input_shape=(n_steps, n_features))),
         tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.Dense(n_outputs, activation="linear")
+        tf.keras.layers.Dense(n_outputs, 
+                              hp.Choice('dense_activation', values=['relu', 'leaky_relu', 'linear']))
     ])
 
-    optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop'])
+    optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop', 'sgd'])
     if optimizer_choice == 'adam':
         optimizer = tf.keras.optimizers.Adam(learning_rate=hp.Float('adam_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
-    else:
+    elif optimizer_choice == 'rmsprop':
         optimizer = tf.keras.optimizers.RMSprop(learning_rate=hp.Float('rmsprop_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
+    else:
+        optimizer = tf.keras.optimizers.SGD(learning_rate=hp.Float('sgd_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
     
     model.compile(optimizer=optimizer,
                   loss='mean_squared_error',

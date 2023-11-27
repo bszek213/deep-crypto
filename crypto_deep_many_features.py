@@ -34,7 +34,7 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
                                                            input_shape=(n_steps, n_features))),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.Dense(n_outputs, 
-                              hp.Choice('dense_activation', values=['relu', 'leaky_relu', 'linear']))
+                              hp.Choice('dense_activation', values=['leaky_relu', 'linear']))
     ])
 
     optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop', 'sgd'])
@@ -263,7 +263,7 @@ class changePricePredictor:
             callbacks=[early_stopping])
             #write best hyperparameters to file
             file_path = 'best_hp.txt'
-            content_to_append = f"Best Hyperparameters: {best_hps.values}"
+            content_to_append = f"{self.crypt_name} Best Hyperparameters: {best_hps.values}"
             with open(file_path, 'a') as file:
                 file.write(content_to_append + '\n')
             #save model
@@ -372,9 +372,9 @@ class changePricePredictor:
         next_days = [start_datetime + pd.Timedelta(days=i) for i in range(len(self.y_pred))]
 
         plt.figure()
-        plt.plot(last_week.index[:-1], last_week[:-1], color='blue', marker='o', label='Price')
+        plt.plot(last_week.index[:-1].to_numpy(), last_week[:-1].to_numpy(), color='blue', marker='o', label='Price')
         plt.plot(next_days, save_price, color='green', marker='o', label='Predicted Price')
-        plt.plot(last_week.index[-2:], last_week[-2:], color='blue')  # Connect the last two points with a blue line
+        plt.plot(last_week.index[-2:].to_numpy(), last_week[-2:].to_numpy(), color='blue')  # Connect the last two points with a blue line
         plt.xlabel('Date')
         plt.ylabel('Price')
         plt.title(f'{self.crypt_name} price for the next {len((self.y_pred))} days')

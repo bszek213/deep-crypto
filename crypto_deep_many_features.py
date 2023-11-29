@@ -34,7 +34,7 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
                                                            input_shape=(n_steps, n_features))),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.Dense(n_outputs, 
-                              hp.Choice('dense_activation', values=['leaky_relu', 'linear']))
+                              hp.Choice('dense_activation', values=['linear','leaky_relu', 'tanh']))
     ])
 
     optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop', 'sgd'])
@@ -168,12 +168,14 @@ class changePricePredictor:
         
         #Close price
         data_close = data['Close'].pct_change().fillna(0).to_numpy().reshape(-1, 1) #close price
+        # plt.hist(data_close,bins=400)
+        # plt.show()
         # data_close = self.scaler1.fit_transform(data_close)
 
         data_non_close = data[self.non_close_features]
         
         #Remove correlated features
-        threshold = 0.90
+        threshold = 0.95
         data_non_close.corr()
         correlation_matrix = data_non_close.corr()
         mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
@@ -251,9 +253,9 @@ class changePricePredictor:
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True
             )
-            early_stopping = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
+            early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
             tuner.search(x=X_train, y=y_train,
-                    epochs=75,
+                    epochs=100,
                     validation_data=(X_val, y_val),
                     callbacks=[early_stopping])
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]

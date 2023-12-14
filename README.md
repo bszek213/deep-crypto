@@ -17,5 +17,10 @@ python3 crypto_deep_many_features.py BTC notest #perform training or create futu
 ![](https://github.com/bszek213/deep-crypto/blob/dev/error_plot.png)
 ### Relationship between Data Length and MAPE
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_data_len.png)
+### By Week and Month Analysis
+Month
+![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_month.png)
+Week
+![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_week.png)
 ### Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.

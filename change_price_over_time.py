@@ -57,7 +57,7 @@ def bin_data_weekly(df,crypt):
     plt.tight_layout()
     if not os.path.exists('price_change'):
         os.mkdir('price_change')
-    plt.savefig(os.path.join('price_change',f'{crypt}_chamge_week.png'),dpi=400)
+    plt.savefig(os.path.join('price_change',f'{crypt}_change_week.png'),dpi=400)
     plt.close()
 
 def bin_data_monthly(df,crypt):
@@ -98,7 +98,7 @@ def bin_data_monthly(df,crypt):
     plt.tight_layout()
     if not os.path.exists('price_change'):
         os.mkdir('price_change')
-    plt.savefig(os.path.join('price_change',f'{crypt}_chamge_month.png'),dpi=400)
+    plt.savefig(os.path.join('price_change',f'{crypt}_change_month.png'),dpi=400)
     plt.close()
 
 

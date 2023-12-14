@@ -360,7 +360,8 @@ class changePricePredictor:
             return y_pred, self.data.index[-1], 0
     
     def plot_pct_change(self):
-        last_week = self.data['Close'].iloc[-14:]
+        look_back = -self.n_outputs - 10
+        last_week = self.data['Close'].iloc[-look_back:]
         price_val = last_week[-1]
         save_price = [] 
         for val in self.y_pred:
@@ -437,8 +438,9 @@ class changePricePredictor:
             yaml.dump(err_data, file)
 
         #Plot data
+        look_back = -self.n_outputs - 10
         plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
-        plt.plot(self.data.index[-21:].to_numpy(),self.data['Close'].iloc[-21:].to_numpy(),marker='.',markersize=10,label='Actual')
+        plt.plot(self.data.index[look_back:].to_numpy(),self.data['Close'].iloc[look_back:].to_numpy(),marker='.',markersize=10,label='Actual')
         plt.title(f'{self.crypt_name} MAPE: {round(mape_error*100,3)}% | data length: {len(self.data["Close"])} samples')
         plt.xlabel('Date')
         plt.ylabel('Price')
@@ -561,7 +563,7 @@ def main():
                 changePricePredictor(crypt=name,
                                     n_features=10, 
                                     n_steps=128, 
-                                    n_outputs=7, 
+                                    n_outputs=21, 
                                     n_epochs=500, 
                                     batch_size=256).run_analysis()
                 if argv[2] == "correlate":
@@ -572,7 +574,7 @@ def main():
         changePricePredictor(crypt=argv[1],
                             n_features=10, 
                             n_steps=128, 
-                            n_outputs=7, 
+                            n_outputs=21, 
                             n_epochs=500, 
                             batch_size=256).run_analysis()
 if __name__ == "__main__":

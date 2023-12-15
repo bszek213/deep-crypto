@@ -360,7 +360,7 @@ class changePricePredictor:
             return y_pred, self.data.index[-1], 0
     
     def plot_pct_change(self):
-        look_back = -self.n_outputs - 10
+        look_back = 30 #days
         last_week = self.data['Close'].iloc[-look_back:]
         price_val = last_week[-1]
         save_price = [] 

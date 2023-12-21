@@ -80,12 +80,16 @@ class changePricePredictor:
         self.n_outputs = n_outputs
         self.n_epochs = n_epochs
         self.batch_size = batch_size
-        crypt_name = crypt + '-USD'
-        temp = yf.Ticker(crypt_name)
-        if len(temp.history(period = 'max', interval="1d")) < 1:
-            print(f'{crypt_name} has no data. No connection to yfinance')
-            exit()
-        price_data = temp.history(period = 'max', interval="1d")
+        if self.crypt_name == "SP":
+            crypt_name = "SP"
+            temp = yf.Ticker('^GSPC')
+            price_data = temp.history(period = 'max', interval="1d")
+        else:
+            temp = yf.Ticker(crypt_name)
+            if len(temp.history(period = 'max', interval="1d")) < 1:
+                print(f'{crypt_name} has no data. No connection to yfinance')
+                exit()
+            price_data = temp.history(period = 'max', interval="1d")
         #change the date out of utc to mine
         current_date = datetime.now().date()
         new_index = pd.date_range(end=current_date, periods=len(price_data.index), freq='D')
@@ -500,7 +504,7 @@ class changePricePredictor:
                 price_len.append(len(temp.history(period = 'max', interval="1d")))
                 error_val.append(value[0])
         data = pd.DataFrame({"MAPE":error_val,"data_len":price_len})
-        data.set_index(pd.Index([key for key, value in err_data.items() if value[0] < 100]), inplace=True)
+        data = data[data['MAPE'] <= 35] #for visualization
         print('ERROR VS. MAPE DF')
         print(data.sort_values(by=['data_len'],ascending=False))
         r_val, p_val = pearsonr(data['MAPE'],data['data_len'])
@@ -554,7 +558,7 @@ class changePricePredictor:
 
 def main():
     if argv[1] == 'all':
-        list_crypt = ['BTC','ETH','ADA','MATIC','DOGE',
+        list_crypt = ["SP",'BTC','ETH','ADA','MATIC','DOGE',
                     'SOL','DOT','SHIB','TRX','FIL','LINK',
                     'APE','MANA',"AVAX","ZEC","ICP","FLOW",
                     "EGLD","XTZ","LTC"]

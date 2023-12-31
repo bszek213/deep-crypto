@@ -85,6 +85,7 @@ class changePricePredictor:
             temp = yf.Ticker('^GSPC')
             price_data = temp.history(period = 'max', interval="1d")
         else:
+            crypt_name = self.crypt_name + "-USD"
             temp = yf.Ticker(crypt_name)
             if len(temp.history(period = 'max', interval="1d")) < 1:
                 print(f'{crypt_name} has no data. No connection to yfinance')

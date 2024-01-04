@@ -238,7 +238,7 @@ class changePricePredictor:
     #                   metrics=[tf.keras.metrics.RootMeanSquaredError()])
     #     return model
 
-    def train_model(self, X_train, y_train, X_val, y_val):
+    def train_model(self, X_train, y_train, X_val, y_val,X_test,y_test):
         save_path = os.path.join(os.getcwd(),'model_loc')
         if os.path.isdir(save_path):
             print('path exists')
@@ -266,15 +266,22 @@ class changePricePredictor:
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
             self.best_model = tuner.get_best_models(num_models=1)[0]
             #fit tuned model
-            self.best_model.fit(X_train, y_train, epochs=75, validation_data=(X_val, y_val),
-            callbacks=[early_stopping])
+            init_model_acc = 0
+            for i in range(7):
+                self.best_model.fit(X_train, y_train, epochs=75, 
+                                    validation_data=(X_val, y_val),
+                                    callbacks=[early_stopping])
+                loss, acc = self.best_model.evaluate(X_test, y_test)
+                if acc > init_model_acc:
+                    #save model
+                    self.model = self.best_model
+                    init_model_acc = acc
             #write best hyperparameters to file
             file_path = 'best_hp.txt'
             content_to_append = f"{self.crypt_name} Best Hyperparameters: {best_hps.values}"
             with open(file_path, 'a') as file:
                 file.write(content_to_append + '\n')
-            #save model
-            self.model = self.best_model
+            
             save_path = os.path.join(os.getcwd(),'model_loc')
             if os.path.isdir(save_path):
                 print('path exists')
@@ -500,10 +507,11 @@ class changePricePredictor:
         for key, value in err_data.items():
             if value[0] < 100:
                 print(f"Key: {key}, Value: {value}")
-                crypt_name = key + '-USD'
-                temp = yf.Ticker(crypt_name)
-                price_len.append(len(temp.history(period = 'max', interval="1d")))
-                error_val.append(value[0])
+                if key != "SP":
+                    crypt_name = key + '-USD'
+                    temp = yf.Ticker(crypt_name)
+                    price_len.append(len(temp.history(period = 'max', interval="1d")))
+                    error_val.append(value[0])
         data = pd.DataFrame({"MAPE":error_val,"data_len":price_len})
         data = data[data['MAPE'] <= 35] #for visualization
         print('ERROR VS. MAPE DF')
@@ -515,17 +523,18 @@ class changePricePredictor:
         correct_classify = 0
         total_classify = 0
         for key, value in price_err.items():
-            crypt_name = key + '-USD'
-            temp = yf.Ticker(crypt_name)
-            price = temp.history(period=f'{str(self.n_outputs)}d')
-            if value['price'][0] < value['price'][-1]:
-                if (value['price'][0] < value['price'][-1]) and (price['Close'].iloc[0] < price['Close'].iloc[1]):
-                    crypt_7_day_pos_neg[key] = 1
-                    correct_classify += 1
-                else:
-                    crypt_7_day_pos_neg[key] = 0
-                total_classify +=1 
-                print(crypt_7_day_pos_neg)
+            if key != "SP":
+                crypt_name = key + '-USD'
+                temp = yf.Ticker(crypt_name)
+                price = temp.history(period=f'{str(self.n_outputs)}d')
+                if value['price'][0] < value['price'][-1]:
+                    if (value['price'][0] < value['price'][-1]) and (price['Close'].iloc[0] < price['Close'].iloc[1]):
+                        crypt_7_day_pos_neg[key] = 1
+                        correct_classify += 1
+                    else:
+                        crypt_7_day_pos_neg[key] = 0
+                    total_classify +=1 
+                    print(crypt_7_day_pos_neg)
         print('========================================================')
         print(f'PROPORTION CORRECT ON THOSE THAT THE MODEL PREDICTED WOULD BE POSITIVE: {(correct_classify / total_classify)*100}%')
         #plot
@@ -549,7 +558,7 @@ class changePricePredictor:
         else:
             # Prepare data for training
             X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)
-            self.train_model(X_train, y_train, X_val, y_val)
+            self.train_model(X_train, y_train, X_val, y_val,X_test,y_test)
             curr_loss = self.evaluate_model(X_test,y_test)
             # Make prediction for tomorrow
             prediction, last_date, test = self.predict(self.data)

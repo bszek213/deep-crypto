@@ -20,7 +20,7 @@ from seaborn import regplot, heatmap
 from scipy.stats import pearsonr
 
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
-    activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh'])
+    activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh', 'linear'])
     regularizer_strength_l1 = hp.Float('regularizer_strength_l1', min_value=1e-6, max_value=1e-2, sampling='log')
     regularizer_strength_l2 = hp.Float('regularizer_strength_l2', min_value=1e-6, max_value=1e-2, sampling='log')
     
@@ -37,13 +37,13 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
                               hp.Choice('dense_activation', values=['linear','leaky_relu', 'tanh']))
     ])
 
-    optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop', 'sgd'])
+    optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop']) #, 'sgd'
     if optimizer_choice == 'adam':
         optimizer = tf.keras.optimizers.Adam(learning_rate=hp.Float('adam_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
-    elif optimizer_choice == 'rmsprop':
+    else:# optimizer_choice == 'rmsprop':
         optimizer = tf.keras.optimizers.RMSprop(learning_rate=hp.Float('rmsprop_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
-    else:
-        optimizer = tf.keras.optimizers.SGD(learning_rate=hp.Float('sgd_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
+    # else:
+    #     optimizer = tf.keras.optimizers.SGD(learning_rate=hp.Float('sgd_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
     
     model.compile(optimizer=optimizer,
                   loss='mean_squared_error',
@@ -266,16 +266,19 @@ class changePricePredictor:
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
             self.best_model = tuner.get_best_models(num_models=1)[0]
             #fit tuned model
-            init_model_acc = 0
+            init_model_acc = float(10000000.0)
             for i in range(7):
                 self.best_model.fit(X_train, y_train, epochs=75, 
                                     validation_data=(X_val, y_val),
                                     callbacks=[early_stopping])
-                loss, acc = self.best_model.evaluate(X_test, y_test)
-                if acc > init_model_acc:
+                loss, mse = self.best_model.evaluate(X_test, y_test)
+                if mse < init_model_acc:
                     #save model
                     self.model = self.best_model
-                    init_model_acc = acc
+                    init_model_acc = mse
+            print('====================================================================================')
+            print(Fore.GREEN, Style.BRIGHT,f'LOWEST MSE ON TEST DATA: {init_model_acc}',Style.RESET_ALL)
+            print('====================================================================================')
             #write best hyperparameters to file
             file_path = 'best_hp.txt'
             content_to_append = f"{self.crypt_name} Best Hyperparameters: {best_hps.values}"
@@ -500,7 +503,6 @@ class changePricePredictor:
         if os.path.exists("crypto_pre_error.yaml"):
             with open("crypto_pre_error.yaml", 'r') as file:
                 price_err = yaml.safe_load(file)
-
         price_len = []
         error_val = []
         #MAPE vs. ERR correlate

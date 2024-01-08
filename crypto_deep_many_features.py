@@ -77,6 +77,25 @@ def find_crypto_data(filename, crypto_name):
     crypto_data = load_data_from_yaml(filename)
     return crypto_data.get(crypto_name)
     
+def calculate_classic_pivot_points_func(high, low, close):
+    """
+    Pivot points indicates direction - price above the pivot point, "May" go up. vice versa
+    Support and resistance are good for stop losses and exit points
+    """
+    pivot_point = (high + low + close) / 3.0
+    support1 = (2 * pivot_point) - high
+    resistance1 = (2 * pivot_point) - low
+    support2 = pivot_point - (high - low)
+    resistance2 = pivot_point + (high - low)
+    support3 = low - 2 * (high - pivot_point)
+    resistance3 = high + 2 * (pivot_point - low)
+    return pivot_point, support1, resistance1, support2, resistance2, support3, resistance3
+
+def calculate_classic_pivot_points(df):
+    df['pivot'], df['s1'], df['r1'], df['s2'], df['r2'], df['s3'], df['r3'] = zip(
+        *df.apply(lambda row: calculate_classic_pivot_points_func(row['High'], row['Low'], row['Close']), axis=1)
+    )
+    return df
 class changePricePredictor:
     def __init__(self, crypt, n_features, n_steps, n_outputs, n_epochs, batch_size):
         self.crypt_name = crypt
@@ -164,9 +183,35 @@ class changePricePredictor:
             volume='Volume',
             fillna=True
         )
-        # print(self.data.columns)
+         
+        #calc pivot points
+        df_weekly = self.data.resample('M').last()
+        df = calculate_classic_pivot_points(df_weekly)
+        # Plot the original data
+        last_month_start = pd.Timestamp.now() - pd.DateOffset(months=2)
+        last_month_data = self.data[self.data.index >= last_month_start]
+        last_month_data['Close'].plot(figsize=(12, 8), label='Close Price',marker='o')
 
-    def prepare_data(self, data):
+        # Plot horizontal lines for Support 1, Support 2, Resistance 1, and Resistance 2
+        plt.axhline(y=df['pivot'].iloc[-1], color='purple', linestyle='--', label='Pivot Point')
+        plt.axhline(y=df['s1'].iloc[-1], color='g', linestyle='--', label='Support 1')
+        plt.axhline(y=df['s2'].iloc[-1], color='b', linestyle='--', label='Support 2')
+        plt.axhline(y=df['r1'].iloc[-1], color='r', linestyle='--', label='Resistance 1')
+        plt.axhline(y=df['r2'].iloc[-1], color='orange', linestyle='--', label='Resistance 2')
+        plt.axhline(y=df['r3'].iloc[-1], color='tab:cyan', linestyle='--', label='Resistance 3')
+        plt.axhline(y=df['s3'].iloc[-1], color='tab:brown', linestyle='--', label='Support 2')
+
+        plt.title(f'{self.crypt_name} Current Pivot points - Plot Last 2 Months')
+        plt.xlabel('Date')
+        plt.ylabel('Close Price')
+        plt.legend()
+        if not os.path.exists('figures_support_resistance'):
+            os.mkdir('figures_support_resistance')
+        save_path = os.path.join(os.getcwd(),'figures_support_resistance',f'{self.crypt_name}_supp_resist.png')
+        plt.savefig(save_path,dpi=350)
+        plt.close()
+
+    def prepare_data(self, data):   
         # Extract relevant features
         data = self.data[self.features]
 

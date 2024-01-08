@@ -19,6 +19,11 @@ from tensorflow.keras.callbacks import EarlyStopping
 from seaborn import regplot, heatmap
 from scipy.stats import pearsonr
 
+"""
+TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
+      feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
+      change you you handle storing which features to keep and discard, be better than just a large list
+"""
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh', 'linear'])
     regularizer_strength_l1 = hp.Float('regularizer_strength_l1', min_value=1e-6, max_value=1e-2, sampling='log')

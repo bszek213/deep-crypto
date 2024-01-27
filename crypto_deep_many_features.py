@@ -96,6 +96,15 @@ def calculate_classic_pivot_points(df):
         *df.apply(lambda row: calculate_classic_pivot_points_func(row['High'], row['Low'], row['Close']), axis=1)
     )
     return df
+
+def feature_engineer(data):
+    for col in data.columns:
+        if data[col].notna().all():
+            data[f'{col}_short'] = data[col].rolling(window=7,min_periods=1).mean()
+            data[f'{col}_med'] = data[col].rolling(window=31,min_periods=1).mean()
+            # data[f'{col}_long'] = data[col].rolling(window=90,min_periods=1).mean()
+    return data
+
 class changePricePredictor:
     def __init__(self, crypt, n_features, n_steps, n_outputs, n_epochs, batch_size):
         self.crypt_name = crypt
@@ -185,7 +194,7 @@ class changePricePredictor:
         )
          
         #calc pivot points
-        df_weekly = self.data.resample('M').last()
+        df_weekly = self.data.resample('M').mean()
         df = calculate_classic_pivot_points(df_weekly)
         # Plot the original data
         last_month_start = pd.Timestamp.now() - pd.DateOffset(months=2)
@@ -229,6 +238,9 @@ class changePricePredictor:
 
         data_non_close = data[self.non_close_features]
         
+        #feature engineer
+        data_non_close = feature_engineer(data_non_close)
+        
         #Remove correlated features
         threshold = 0.95
         data_non_close.corr()
@@ -236,6 +248,7 @@ class changePricePredictor:
         mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
         to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix.loc[column, mask[:, correlation_matrix.columns.get_loc(column)]] > threshold)]
         print(f'Features to be removed: {to_drop}')
+        self.drop_features = to_drop
         #features to keep
         self.non_close_features = [item for item in self.non_close_features if item not in to_drop]
         # Remove highly correlated features
@@ -249,6 +262,7 @@ class changePricePredictor:
         plt.close()
 
         data_non_close = self.scaler2.fit_transform(data_non_close)
+        self.data_non_close_save = data_non_close
         data = np.concatenate((data_close, data_non_close), axis=1)
 
         # Split data into input/output sequences
@@ -355,13 +369,17 @@ class changePricePredictor:
         # test = data['Close'].pct_change().fillna(method='bfill').to_numpy().reshape(-1, 1)[-self.n_steps:] #pct_change
         test = data['Close'].pct_change().to_numpy().reshape(-1, 1)[-self.n_steps:] #close
         # Prepare data for prediction
-        data = data[self.features]
         # data_close = data['Close'].pct_change().fillna(method='bfill').to_numpy().reshape(-1, 1) #pct_change
         data_close = data['Close'].pct_change().to_numpy().reshape(-1, 1) #close
         # data_close = self.scaler1.transform(data_close)
-        data_non_close = data[self.non_close_features]
-        data_non_close = self.scaler2.transform(data_non_close)
-        data = np.concatenate((data_close, data_non_close), axis=1)
+        # data_non_close = data[self.non_close_features]
+        #feature engineer
+        # data = data[self.non_close_features]
+        # data = feature_engineer(data)
+        # data_non_close= data.drop(columns=self.drop_features)
+        #transform
+        # data_non_close = self.scaler2.transform()
+        data = np.concatenate((data_close, self.data_non_close_save), axis=1)
 
         #Predict the future after test data
         if argv[2] == "test_future":

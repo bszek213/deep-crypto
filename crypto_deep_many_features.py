@@ -575,7 +575,7 @@ class changePricePredictor:
         error_val = []
         #MAPE vs. ERR correlate
         for key, value in err_data.items():
-            if value[0] < 100:
+            if value[0] < 1:
                 print(f"Key: {key}, Value: {value}")
                 if key != "SP":
                     crypt_name = key + '-USD'
@@ -583,7 +583,7 @@ class changePricePredictor:
                     price_len.append(len(temp.history(period = 'max', interval="1d")))
                     error_val.append(value[0])
         data = pd.DataFrame({"MAPE":error_val,"data_len":price_len})
-        data = data[data['MAPE'] <= 35] #for visualization
+        # data = data[data['MAPE'] <= 35] #for visualization
         print('ERROR VS. MAPE DF')
         print(data.sort_values(by=['data_len'],ascending=False))
         r_val, p_val = pearsonr(data['MAPE'],data['data_len'])
@@ -608,7 +608,7 @@ class changePricePredictor:
         print('========================================================')
         print(f'PROPORTION CORRECT ON THOSE THAT THE MODEL PREDICTED WOULD BE POSITIVE: {(correct_classify / total_classify)*100}%')
         #plot
-        g = regplot(data,x='MAPE',y='data_len')
+        g = regplot(data,x='MAPE',y='data_len',ci=None)
         plt.text(0.9, 0.9, f'r^2 = {r_val**2:.2f}\np = {p_val:.2e}', transform=g.transAxes, ha='center')
         print(f"Correlation between MAPE vs. Length of the Price Data: {(r_val,p_val)}")
         print('========================================================')

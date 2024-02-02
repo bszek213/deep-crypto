@@ -15,9 +15,11 @@ from tqdm import tqdm
 from keras_tuner import RandomSearch
 from datetime import datetime
 import yaml
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from seaborn import regplot, heatmap
 from scipy.stats import pearsonr
+import eli5
+from eli5.sklearn import PermutationImportance
 
 """
 TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
@@ -44,15 +46,15 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
 
     optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop']) #, 'sgd'
     if optimizer_choice == 'adam':
-        optimizer = tf.keras.optimizers.Adam(learning_rate=hp.Float('adam_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
+        optimizer = tf.keras.optimizers.Adam(learning_rate=hp.Float('adam_learning_rate', min_value=0.0001, max_value=0.01, sampling='log'))
     else:# optimizer_choice == 'rmsprop':
-        optimizer = tf.keras.optimizers.RMSprop(learning_rate=hp.Float('rmsprop_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
+        optimizer = tf.keras.optimizers.RMSprop(learning_rate=hp.Float('rmsprop_learning_rate', min_value=0.0001, max_value=0.01, sampling='log'))
     # else:
     #     optimizer = tf.keras.optimizers.SGD(learning_rate=hp.Float('sgd_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
     
     model.compile(optimizer=optimizer,
-                  loss='mean_squared_error',
-                  metrics=['mean_squared_error'])
+                  loss='mean_absolute_error', #mean_squared_error
+                  metrics=['mean_absolute_error'])
 
     return model
 
@@ -113,6 +115,18 @@ class changePricePredictor:
         self.n_outputs = n_outputs
         self.n_epochs = n_epochs
         self.batch_size = batch_size
+        #use S&P price for any explanatory power of what the crypto will do
+        temp = yf.Ticker('^GSPC')
+        sp_price = temp.history(period = 'max', interval="1d")
+        self.typical_price_SP = (sp_price['High'] + sp_price['Close'] + sp_price['Low'])
+        self.typical_price_SP.name = 'typical_price_SP'
+        self.typical_price_SP.index = self.typical_price_SP.index.date
+        #same thing for usd 
+        usd_eur_data = yf.download('USDEUR=X')
+        self.typical_price_usd = (usd_eur_data['High'] + usd_eur_data['Close'] + usd_eur_data['Low'])
+        self.typical_price_usd.name = 'typical_price_usd_euro'
+        self.typical_price_usd.index = self.typical_price_usd.index.date
+
         if self.crypt_name == "SP":
             crypt_name = "SP"
             temp = yf.Ticker('^GSPC')
@@ -240,10 +254,23 @@ class changePricePredictor:
         
         #feature engineer
         data_non_close = feature_engineer(data_non_close)
-        
+
+        #put sp typical price into df
+        data_non_close.index = pd.to_datetime(data_non_close.index)
+        data_non_close['Date'] = data_non_close.index.date
+        data_non_close = pd.merge(data_non_close, self.typical_price_SP, left_on='Date', right_index=True, how='left')
+        data_non_close.drop('Date', axis=1, inplace=True)
+        #sp no weekend data
+        data_non_close['typical_price_SP'].fillna(method='bfill', inplace=True)
+        #Same thing for usdeuro
+        data_non_close['Date'] = data_non_close.index.date
+        data_non_close = pd.merge(data_non_close, self.typical_price_usd, left_on='Date', right_index=True, how='left')
+        data_non_close.drop('Date', axis=1, inplace=True)
+        #eurousd no weekend data
+        data_non_close['typical_price_usd_euro'].fillna(method='bfill', inplace=True)
+
         #Remove correlated features
         threshold = 0.95
-        data_non_close.corr()
         correlation_matrix = data_non_close.corr()
         mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
         to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix.loc[column, mask[:, correlation_matrix.columns.get_loc(column)]] > threshold)]
@@ -264,6 +291,23 @@ class changePricePredictor:
         data_non_close = self.scaler2.fit_transform(data_non_close)
         self.data_non_close_save = data_non_close
         data = np.concatenate((data_close, data_non_close), axis=1)
+
+        # data_sorted = np.sort(data[:,0])
+        # q1, q3 = np.percentile(data_sorted, [25, 75])
+        # iqr_value = q3 - q1
+
+        # # Define the lower and upper bounds for outliers
+        # lower_bound = q1 - 1.5 * iqr_value
+        # upper_bound = q3 + 1.5 * iqr_value
+
+        # # Identify outliers
+        # outliers = (data_sorted < lower_bound) | (data_sorted > upper_bound)
+
+        # # Calculate the proportion of outliers
+        # proportion_outliers = np.sum(outliers) / len(data)
+
+        # print(proportion_outliers)
+        # input()
 
         # Split data into input/output sequences
         X, y = [], []
@@ -316,25 +360,27 @@ class changePricePredictor:
             #TUNE LSTM
             tuner = RandomSearch(
                 lambda hp: create_lstm_model(hp, self.n_steps, self.n_features, self.n_outputs),
-                objective='val_loss',
+                objective='val_mean_absolute_error', #val_loss
                 max_trials=30,
                 directory=f'{self.crypt_name}_lstm_hp',
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True
             )
-            early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+            #val_mean_absolute_error or val_loss
+            early_stopping = EarlyStopping(monitor='val_mean_absolute_error', patience=9, restore_best_weights=True)
+            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=1e-6)
             tuner.search(x=X_train, y=y_train,
-                    epochs=100,
+                    epochs=200,
                     validation_data=(X_val, y_val),
-                    callbacks=[early_stopping])
+                    callbacks=[early_stopping,reduce_lr])
             best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
             self.best_model = tuner.get_best_models(num_models=1)[0]
             #fit tuned model
             init_model_acc = float(10000000.0)
-            for i in range(7):
-                self.best_model.fit(X_train, y_train, epochs=75, 
+            for i in range(15):
+                self.best_model.fit(X_train, y_train, epochs=200, 
                                     validation_data=(X_val, y_val),
-                                    callbacks=[early_stopping])
+                                    callbacks=[early_stopping,reduce_lr])
                 loss, mse = self.best_model.evaluate(X_test, y_test)
                 if mse < init_model_acc:
                     #save model
@@ -356,6 +402,10 @@ class changePricePredictor:
                 os.mkdir('model_loc')
             save_path = os.path.join(save_path,f"{self.crypt_name}_lstm_model.h5")
             self.best_model.save(save_path)
+            #get feature importance
+            # perm = PermutationImportance(self.model, random_state=1).fit(X_val, y_val)
+            # eli5.show_weights(perm)
+            # input()
 
     def evaluate_model(self, X_test, y_test):
         loss = self.model.evaluate(X_test, y_test)
@@ -638,10 +688,10 @@ class changePricePredictor:
 
 def main():
     if argv[1] == 'all':
-        list_crypt = ["SP",'BTC','ETH','ADA','MATIC','DOGE',
+        list_crypt = ['BTC','ETH','ADA','MATIC','DOGE',
                     'SOL','DOT','SHIB','TRX','FIL','LINK',
                     'APE','MANA',"AVAX","ZEC","ICP","FLOW",
-                    "EGLD","XTZ","LTC"]
+                    "EGLD","XTZ","LTC","XRP"] # "SP",
         for name in tqdm(sorted(list_crypt)):
             try:
                 changePricePredictor(crypt=name,

@@ -102,9 +102,13 @@ def calculate_classic_pivot_points(df):
 def feature_engineer(data):
     for col in data.columns:
         if data[col].notna().all():
+            #create running averages
             data[f'{col}_short'] = data[col].rolling(window=7,min_periods=1).mean()
             data[f'{col}_med'] = data[col].rolling(window=31,min_periods=1).mean()
-            # data[f'{col}_long'] = data[col].rolling(window=90,min_periods=1).mean()
+            data[f'{col}_long'] = data[col].rolling(window=90,min_periods=1).mean()
+    #add day of the week and month
+    data['day_of_week'] = data.index.weekday
+    data['month'] = data.index.month
     return data
 
 class changePricePredictor:
@@ -115,17 +119,18 @@ class changePricePredictor:
         self.n_outputs = n_outputs
         self.n_epochs = n_epochs
         self.batch_size = batch_size
+
         #use S&P price for any explanatory power of what the crypto will do
-        temp = yf.Ticker('^GSPC')
-        sp_price = temp.history(period = 'max', interval="1d")
-        self.typical_price_SP = (sp_price['High'] + sp_price['Close'] + sp_price['Low'])
-        self.typical_price_SP.name = 'typical_price_SP'
-        self.typical_price_SP.index = self.typical_price_SP.index.date
-        #same thing for usd 
-        usd_eur_data = yf.download('USDEUR=X')
-        self.typical_price_usd = (usd_eur_data['High'] + usd_eur_data['Close'] + usd_eur_data['Low'])
-        self.typical_price_usd.name = 'typical_price_usd_euro'
-        self.typical_price_usd.index = self.typical_price_usd.index.date
+        # temp = yf.Ticker('^GSPC')
+        # sp_price = temp.history(period = 'max', interval="1d")
+        # self.typical_price_SP = (sp_price['High'] + sp_price['Close'] + sp_price['Low'])
+        # self.typical_price_SP.name = 'typical_price_SP'
+        # self.typical_price_SP.index = self.typical_price_SP.index.date
+        # #same thing for usd 
+        # usd_eur_data = yf.download('USDEUR=X')
+        # self.typical_price_usd = (usd_eur_data['High'] + usd_eur_data['Close'] + usd_eur_data['Low'])
+        # self.typical_price_usd.name = 'typical_price_usd_euro'
+        # self.typical_price_usd.index = self.typical_price_usd.index.date
 
         if self.crypt_name == "SP":
             crypt_name = "SP"
@@ -256,18 +261,18 @@ class changePricePredictor:
         data_non_close = feature_engineer(data_non_close)
 
         #put sp typical price into df
-        data_non_close.index = pd.to_datetime(data_non_close.index)
-        data_non_close['Date'] = data_non_close.index.date
-        data_non_close = pd.merge(data_non_close, self.typical_price_SP, left_on='Date', right_index=True, how='left')
-        data_non_close.drop('Date', axis=1, inplace=True)
-        #sp no weekend data
-        data_non_close['typical_price_SP'].fillna(method='bfill', inplace=True)
-        #Same thing for usdeuro
-        data_non_close['Date'] = data_non_close.index.date
-        data_non_close = pd.merge(data_non_close, self.typical_price_usd, left_on='Date', right_index=True, how='left')
-        data_non_close.drop('Date', axis=1, inplace=True)
-        #eurousd no weekend data
-        data_non_close['typical_price_usd_euro'].fillna(method='bfill', inplace=True)
+        # data_non_close.index = pd.to_datetime(data_non_close.index)
+        # data_non_close['Date'] = data_non_close.index.date
+        # data_non_close = pd.merge(data_non_close, self.typical_price_SP, left_on='Date', right_index=True, how='left')
+        # data_non_close.drop('Date', axis=1, inplace=True)
+        # #sp no weekend data
+        # data_non_close['typical_price_SP'].fillna(method='bfill', inplace=True)
+        # #Same thing for usdeuro
+        # data_non_close['Date'] = data_non_close.index.date
+        # data_non_close = pd.merge(data_non_close, self.typical_price_usd, left_on='Date', right_index=True, how='left')
+        # data_non_close.drop('Date', axis=1, inplace=True)
+        # #eurousd no weekend data
+        # data_non_close['typical_price_usd_euro'].fillna(method='bfill', inplace=True)
 
         #Remove correlated features
         threshold = 0.95

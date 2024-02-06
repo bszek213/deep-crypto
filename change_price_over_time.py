@@ -7,11 +7,23 @@ import os
 import matplotlib as mpl
 from tqdm import tqdm
 import calendar
+from EntropyHub import PermEn, ApEn
+from scipy.stats import entropy
+import seaborn as sns
+
 mpl.rcParams['font.weight'] = 'bold'
 mpl.rcParams['axes.labelweight'] = 'bold'
+"""
+Change price over time AND
+Entropy-Causality Plane
+"""
 
 def get_price(crypt):
-    crypt_name = crypt + '-USD'
+    if crypt != "^GSPC" and crypt != "VOO" and crypt != "^DJI" and crypt != "^RUT":
+        crypt_name = crypt + '-USD'
+    else:
+        crypt_name = crypt
+
     temp = yf.Ticker(crypt_name)
     if len(temp.history(period = 'max', interval="1d")) < 1:
         print(f'{crypt_name} has no data. No connection to yfinance')
@@ -101,16 +113,75 @@ def bin_data_monthly(df,crypt):
     plt.savefig(os.path.join('price_change',f'{crypt}_change_month.png'),dpi=400)
     plt.close()
 
+def get_fs(df):
+    time_interval = df.index[1] - df.index[0]
+    time_interval_seconds = time_interval.total_seconds()
+    return 1 / time_interval_seconds
+
+def ent_causality(price):
+    window_size = 300 #days
+    overlap = 1  # days (you can adjust this)
+    permutation_entropy_out = []
+    statistical_complexity = []
+
+    price['log_return'] = np.log(price['Close'] / price['Close'].shift(1))
+    btc_returns_normalized = price['log_return'].fillna(method='bfill')
+    btc_returns_normalized.replace([np.inf, -np.inf], np.nan, inplace=True)
+    btc_returns_normalized.dropna(inplace=True)
+    # btc_returns_normalized = (price['log_return'] - np.mean(price['log_return'])) / np.std(price['log_return'])
+
+    # btc_returns_normalized = btc_returns_normalized.fillna(method='bfill').values
+
+    # btc_returns_normalized = np.round(btc_returns_normalized, decimals=2)
+
+    hist, _ = np.histogram(btc_returns_normalized, bins=50, density=True)
+    #probability distribution
+    probs = hist / np.sum(hist)
+
+    #entropy and complexity
+    # for i in range(0, len(btc_returns_normalized) - window_size, overlap):
+    #     window_data = btc_returns_normalized[i:i+window_size]
+    #     pe = PermEn(window_data)  # Permutation entropy
+    #     # sc = spectral_entropy(window_data,1, method='welch')  # Statistical complexity
+    #     sc = ApEn(window_data,r=0.2)
+    #     permutation_entropy_out.append(pe[2][0])
+    #     statistical_complexity.append(sc[0][2])
+    #     print(pe[2][0])
+    #     print(sc[0][2])
+
+    # plt.figure(figsize=(8, 6))
+    # plt.scatter(permutation_entropy_out, statistical_complexity, c='b', alpha=0.7)
+    # plt.xlabel('Permutation Entropy')
+    # plt.ylabel('Statistical Complexity')
+    # plt.title('Complexity-Entropy Causality Plane for Bitcoin Price')
+    # plt.grid(True)
+    # plt.show()
+    try:
+        return entropy(probs)
+    except:
+        return np.nan
 
 def main():
-    list_crypt = ['BTC','ETH','ADA','MATIC','DOGE',
+    list_crypt = ['^RUT','^DJI',"^GSPC","VOO",'BTC','ETH','ADA','MATIC','DOGE',
                     'SOL','DOT','SHIB','TRX','FIL','LINK',
                     'APE','MANA',"AVAX","ZEC","ICP","FLOW",
                     "EGLD","XTZ","LTC"]
+    ent = []
     for crypt in tqdm(list_crypt):
         price_data = get_price(crypt)
-        bin_data_monthly(price_data,crypt)
-        bin_data_weekly(price_data,crypt)
+        # bin_data_monthly(price_data,crypt)
+        # bin_data_weekly(price_data,crypt)
+        ent.append(ent_causality(price_data))
+    df = pd.DataFrame({'Crypto': list_crypt, 'Entropy': ent})
+    df_sorted = df.sort_values(by='Entropy')
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x='Entropy', y='Crypto', data=df_sorted, palette='darkgrid')
+    plt.xlabel('Shannon Entropy')
+    plt.ylabel('Crypto')
+    plt.title('Shannon Entropy of Returns (Lowest to Highest)')
+    plt.tight_layout()
+    plt.savefig("Entropy_cryptos_stock_market.png",dpi=400)
+
         
 if __name__ == "__main__":
     main()

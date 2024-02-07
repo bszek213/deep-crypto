@@ -175,7 +175,7 @@ def main():
     df = pd.DataFrame({'Crypto': list_crypt, 'Entropy': ent})
     df_sorted = df.sort_values(by='Entropy')
     plt.figure(figsize=(10, 6))
-    sns.barplot(x='Entropy', y='Crypto', data=df_sorted, palette='darkgrid')
+    sns.barplot(x='Entropy', y='Crypto', data=df_sorted, palette='deep')
     plt.xlabel('Shannon Entropy')
     plt.ylabel('Crypto')
     plt.title('Shannon Entropy of Returns (Lowest to Highest)')

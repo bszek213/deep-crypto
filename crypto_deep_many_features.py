@@ -577,6 +577,7 @@ class changePricePredictor:
 
         #Plot data
         look_back = -self.n_outputs - 10
+        plt.figure(figsize=(12,8))
         plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
         plt.plot(self.data.index[look_back:].to_numpy(),self.data['Close'].iloc[look_back:].to_numpy(),marker='.',markersize=10,label='Actual')
         plt.title(f'{self.crypt_name} MAPE: {round(mape_error*100,3)}% | data length: {len(self.data["Close"])} samples')

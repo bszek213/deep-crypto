@@ -18,8 +18,7 @@ import yaml
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from seaborn import regplot, heatmap
 from scipy.stats import pearsonr
-import eli5
-from eli5.sklearn import PermutationImportance
+import shap
 
 """
 TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
@@ -286,7 +285,7 @@ class changePricePredictor:
         # Remove highly correlated features
         data_non_close = data_non_close.drop(columns=to_drop)
         # Create and save a heatmap plot
-        plt.figure(figsize=(10, 10))
+        plt.figure(figsize=(15, 15))
         heatmap(correlation_matrix, cmap="coolwarm", mask=mask)
         plt.title("Correlation Heatmap")
         plt.tight_layout()
@@ -360,6 +359,18 @@ class changePricePredictor:
         save_path = os.path.join(save_path,f"{self.crypt_name}_lstm_model.h5")
         if os.path.exists(save_path):
             self.model = load_model(save_path)
+
+            # masker = shap.maskers.Independent(data=X_train)
+            # explainer = shap.Explainer(self.model, masker)
+            # shap_values = explainer.shap_values(X_train)
+            # feature_importances = np.mean(np.abs(shap_values),axis=0)
+            # print(feature_importances.shape)
+            # feature_names = self.non_close_features
+            # shap.summary_plot(feature_importances.T, 
+            #                 feature_names=feature_names, 
+            #                 plot_type="bar", 
+            #                 max_display=feature_importances.shape[0],
+            #                 show=True)
         else:
             # model = self.create_model()
             #TUNE LSTM
@@ -407,10 +418,6 @@ class changePricePredictor:
                 os.mkdir('model_loc')
             save_path = os.path.join(save_path,f"{self.crypt_name}_lstm_model.h5")
             self.best_model.save(save_path)
-            #get feature importance
-            # perm = PermutationImportance(self.model, random_state=1).fit(X_val, y_val)
-            # eli5.show_weights(perm)
-            # input()
 
     def evaluate_model(self, X_test, y_test):
         loss = self.model.evaluate(X_test, y_test)
@@ -496,35 +503,50 @@ class changePricePredictor:
             print(Fore.GREEN, Style.BRIGHT, f'Predicted value for tomorrow at {datetime.now() + timedelta(days=1)} for {self.crypt_name}: {y_pred[0][0]*100}%',Style.RESET_ALL)
 
             return y_pred, self.data.index[-1], 0
-    
+
+    def rolling_95_pct_ci(self, close_data):
+        window_size = 14
+        rolling_std = close_data.rolling(window=window_size).std()
+        z_score = 1.96  # z-score for a 95% confidence interval in a standard normal distribution
+        ci_upper = close_data + (z_score * rolling_std)
+        ci_lower = close_data - (z_score * rolling_std)
+        return ci_upper, ci_lower
+
     def plot_pct_change(self):
+        close_data = self.data['Close']
         look_back = 30 #days
-        last_week = self.data['Close'].iloc[-look_back:]
-        price_val = last_week[-1]
-        save_price = [] 
+        # last_week = self.data['Close'].iloc[-look_back:]
+        # look_back_confidence_interval_upper = ci_upper.iloc[-look_back:]
+        # look_back_confidence_interval_lower = ci_lower.iloc[-look_back:]
+        price_val = close_data.iloc[-1]
+        future_close = pd.Series(close_data.values,index=close_data.index)
         for val in self.y_pred:
             tomorrow = price_val + (price_val * val)
             price_val = tomorrow
-            save_price.append(tomorrow)
+            future_close[future_close.index[-1] + pd.Timedelta(days=1)] = tomorrow
+        # calculate 95% CI rolling
+        ci_upper, ci_lower = self.rolling_95_pct_ci(future_close)
+        future_close.index = pd.to_datetime(future_close.index)
 
-        self.data.index = pd.to_datetime(self.data.index)
-        # Calculate the next days datetime
-        start_datetime = self.data.index[-1] + pd.Timedelta(days=1)
-        next_days = [start_datetime + pd.Timedelta(days=i) for i in range(len(self.y_pred))]
-
-        plt.figure()
-        plt.plot(last_week.index[:-1].to_numpy(), last_week[:-1].to_numpy(), color='blue', marker='o', label='Price')
-        plt.plot(next_days, save_price, color='green', marker='o', label='Predicted Price')
-        plt.plot(last_week.index[-2:].to_numpy(), last_week[-2:].to_numpy(), color='blue')  # Connect the last two points with a blue line
-        plt.xlabel('Date')
-        plt.ylabel('Price')
-        plt.title(f'{self.crypt_name} price for the next {len((self.y_pred))} days')
+        plt.rcParams['font.weight'] = 'bold'
+        plt.figure(figsize=(10,8))
+        look_back_2 = look_back# + len(self.y_pred)
+        plt.fill_between(ci_upper.index.to_numpy()[-look_back_2:], ci_upper.to_numpy()[-look_back_2:], 
+                         ci_lower.to_numpy()[-look_back_2:], 
+                         color='lightblue', alpha=0.5, label='rolling 95% ci')
+        plt.plot(future_close.index.to_numpy()[-look_back:], 
+                 future_close.to_numpy()[-look_back:], color='blue', marker='o', label='Price')
+        plt.plot(future_close.index.to_numpy()[-len(self.y_pred):], future_close.to_numpy()[-len(self.y_pred):], color='green', marker='o', label='Predicted Price')
+        # plt.plot(last_week.index[-2:].to_numpy(), last_week[-2:].to_numpy(), color='blue')  # Connect the last two points with a blue line
+        plt.xlabel('Date',fontweight='bold')
+        plt.ylabel('Price',fontweight='bold')
+        plt.title(f'{self.crypt_name} price for the next {len((self.y_pred))} days',fontweight='bold')
         plt.xticks(rotation=45)
         plt.legend()
         plt.tight_layout()
         if not os.path.exists('figures'):
             os.mkdir('figures')
-        save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_tomorrow_price.png')
+        save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_future_price.png')
         plt.savefig(save_path,dpi=350)
         plt.close()
 
@@ -554,6 +576,9 @@ class changePricePredictor:
         # np.savetxt(os.path.join(os.getcwd(),'predictions',f'{self.crypt_name}_prediction.txt'), self.y_pred[0][0], fmt='%.6f')
 
     def check_output(self):
+        # #calculate 95% CI rolling
+        # self.rolling_95_pct_ci()
+
         with open('crypto_pre_error.yaml', 'r') as file:
             data = yaml.safe_load(file)
         time_output = [data[self.crypt_name]['time'][0] + timedelta(days=i) for i in range(1, len(data[self.crypt_name]['price']))]
@@ -564,7 +589,8 @@ class changePricePredictor:
         #find matching indices and get error
         matching_indices = self.data.index[self.data.index.to_series().dt.floor('D').isin(time_output)]
         matching_close_prices = self.data['Close'][matching_indices]
-        mape_error = mean_absolute_percentage_error(matching_close_prices.values,data[self.crypt_name]['price'][0:len(matching_close_prices)])
+        mape_error = mean_absolute_percentage_error(matching_close_prices.values,
+                                                    data[self.crypt_name]['price'][0:len(matching_close_prices)])
         #write data to file
         if os.path.exists("crypto_mape.yaml"):
             with open("crypto_mape.yaml", 'r') as file:

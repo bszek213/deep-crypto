@@ -15,6 +15,8 @@ python3 crypto_deep_many_features.py BTC notest #perform training or create futu
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png)
 ### Forecasting error
 ![](https://github.com/bszek213/deep-crypto/blob/dev/error_plot.png)
+### Forecasting examples of BTC
+![](https://github.com/bszek213/deep-crypto/blob/dev/figures/BTC_future_price.png)
 ### Relationship between Data Length and MAPE
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_data_len.png)
 ### By Week and Month Analysis

@@ -601,9 +601,15 @@ class changePricePredictor:
         with open("crypto_mape.yaml", 'w') as file:
             yaml.dump(err_data, file)
 
+        #95% 
+        ci_upper, ci_lower = self.rolling_95_pct_ci(self.data['Close'])
         #Plot data
         look_back = -self.n_outputs - 10
+        plt.rcParams['font.weight'] = 'bold'
         plt.figure(figsize=(12,8))
+        plt.fill_between(ci_upper.index.to_numpy()[look_back:], ci_upper.to_numpy()[look_back:], 
+                         ci_lower.to_numpy()[look_back:], 
+                         color='lightblue', alpha=0.5, label='rolling 95% ci')
         plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
         plt.plot(self.data.index[look_back:].to_numpy(),self.data['Close'].iloc[look_back:].to_numpy(),marker='.',markersize=10,label='Actual')
         plt.title(f'{self.crypt_name} MAPE: {round(mape_error*100,3)}% | data length: {len(self.data["Close"])} samples')

@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 # key file
 key.txt
+fred_api.txt
 errors.log
 kraken_ta_all_crypto.csv
 

@@ -18,7 +18,7 @@ import yaml
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from seaborn import regplot, heatmap
 from scipy.stats import pearsonr
-import shap
+from fredapi import Fred
 
 """
 TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
@@ -238,7 +238,55 @@ class changePricePredictor:
         plt.savefig(save_path,dpi=350)
         plt.close()
 
-    def prepare_data(self, data):   
+    def fred_data(self):
+        with open('fred_api.txt', 'r') as f:
+            fred_api = f.read()
+        fred = Fred(api_key=fred_api)
+        #GDP 
+        gdp_df = fred.get_series_as_of_date('GDP', str(datetime.now().date()))
+        gdp_df['date'] = pd.to_datetime(gdp_df['date'])
+        closest_date = min(gdp_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        desired_index = gdp_df[gdp_df['date'] == closest_date].index[0]
+        gdp_df = gdp_df[['date','value']].iloc[desired_index:]
+        interpolated_gdp_values = np.interp(
+            np.linspace(0, 1, num=len(self.data)),
+            np.linspace(0, 1, num=len(gdp_df['value'])),  # Current indices
+            gdp_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        )   
+        
+        #inflation
+        inflation_df = fred.get_series_as_of_date('T10YIEM', str(datetime.now().date()))  
+        inflation_df['date'] = pd.to_datetime(inflation_df['date'])
+        closest_date = min(inflation_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        desired_index = inflation_df[inflation_df['date'] == closest_date].index[0]
+        inflation_df = inflation_df[['date','value']].iloc[desired_index:]
+        interpolated_inflation_values = np.interp(
+            np.linspace(0, 1, num=len(self.data)), 
+            np.linspace(0, 1, num=len(inflation_df['value'])),  # Current indices
+            inflation_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        )   
+
+        #mortgage
+        morg_df = fred.get_series_as_of_date('MORTGAGE30US', str(datetime.now().date()))  
+        morg_df['date'] = pd.to_datetime(morg_df['date'])
+        closest_date = min(morg_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        desired_index = morg_df[morg_df['date'] == closest_date].index[0]
+        morg_df = morg_df[['date','value']].iloc[desired_index:]
+        interpolated_morg_values = np.interp(
+            np.linspace(0, 1, num=len(self.data)), 
+            np.linspace(0, 1, num=len(morg_df['value'])),  # Current indices
+            morg_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        )
+        #add these to data and add feature names
+        self.data['gdp'] = interpolated_gdp_values
+        self.data['inflation'] = interpolated_inflation_values
+        self.data['mortgage'] = interpolated_morg_values
+        self.features = self.features + ['gdp','inflation','mortgage']
+        self.non_close_features = self.non_close_features + ['gdp','inflation','mortgage']
+
+    def prepare_data(self, data):
+        #FRED features
+        self.fred_data()   
         # Extract relevant features
         data = self.data[self.features]
 
@@ -278,14 +326,14 @@ class changePricePredictor:
         correlation_matrix = data_non_close.corr()
         mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
         to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix.loc[column, mask[:, correlation_matrix.columns.get_loc(column)]] > threshold)]
-        print(f'Features to be removed: {to_drop}')
+        print(Fore.LIGHTCYAN_EX, Style.BRIGHT,f'Features to be removed: {to_drop}',Style.RESET_ALL)
         self.drop_features = to_drop
         #features to keep
         self.non_close_features = [item for item in self.non_close_features if item not in to_drop]
         # Remove highly correlated features
         data_non_close = data_non_close.drop(columns=to_drop)
         # Create and save a heatmap plot
-        plt.figure(figsize=(15, 15))
+        plt.figure(figsize=(20, 20))
         heatmap(correlation_matrix, cmap="coolwarm", mask=mask)
         plt.title("Correlation Heatmap")
         plt.tight_layout()

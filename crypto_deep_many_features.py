@@ -13,12 +13,14 @@ from colorama import Fore, Style
 from sys import argv
 from tqdm import tqdm
 from keras_tuner import RandomSearch
-from datetime import datetime
 import yaml
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from seaborn import regplot, heatmap
 from scipy.stats import pearsonr
 from fredapi import Fred
+import mwclient
+from transformers import pipeline
+from time import strftime
 
 """
 TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
@@ -98,6 +100,12 @@ def calculate_classic_pivot_points(df):
     )
     return df
 
+def calculate_mean(sentiments):
+    if isinstance(sentiments, list):
+        return np.mean(sentiments)
+    else:
+        return sentiments
+    
 def feature_engineer(data):
     for col in data.columns:
         if data[col].notna().all():
@@ -284,9 +292,103 @@ class changePricePredictor:
         self.features = self.features + ['gdp','inflation','mortgage']
         self.non_close_features = self.non_close_features + ['gdp','inflation','mortgage']
 
+    
+    def mw_data(self):
+        """
+        idea from https://www.youtube.com/watch?v=TF2Nx_ifmrU
+        """
+        list_crypt = ['BTC','ETH','ADA','MATIC','DOGE',
+                    'SOL','DOT','SHIB','TRX','FIL','LINK',
+                    'APE','MANA',"AVAX","ZEC","ICP","FLOW",
+                    "EGLD","XTZ","LTC","XRP"] 
+        site = mwclient.Site("en.wikipedia.org")
+        #handle names
+        if argv[1] == "BTC":
+            name = "Bitcoin"
+        elif argv[1] == "ETH":
+            name = "Ethereum"
+        elif argv[1] == "ADA":
+            name = "Cardano (blockchain platform)"
+        elif argv[1] == "MATIC":
+            name = "Polygon (blockchain)"
+        elif argv[1] == "DOGE":
+            name = "Dogecoin"
+        elif argv[1] == "SOL":
+            name = "Solana (blockchain platform)"
+        elif argv[1] == "DOT":
+            name = "Polkadot (cryptocurrency)"
+        elif argv[1] == "SHIB":
+            name = "Shiba Inu (cryptocurrency)"
+        elif argv[1] == "TRX":
+            name = "Tron (cryptocurrency)"
+        elif argv[1] == "FIL":
+            name = "Filecoin"
+        elif argv[1] == "LINK":
+            name = "Chainlink (blockchain)"
+        elif argv[1] == "APE":
+            name = "Bored Ape"
+        elif argv[1] == "MANA":
+            name = "Decentraland"
+        elif argv[1] == "AVAX":
+            name = "Avalanche (blockchain platform)"
+        elif argv[1] == "ZEC":
+            name = "Zcash"
+        elif argv[1] == "ICP": #does not have one
+            name = "Nothing"
+        elif argv[1] == "FLOW":
+            name = "Flow Traders"
+        elif argv[1] == "EGLD":
+            name = "Nothing"
+        elif argv[1] == "XTZ":
+            name = "Tezos"
+        elif argv[1] == "LTC":
+            name = "Litecoin"
+        elif argv[1] == "XRP":
+            name = "Ripple (payment protocol)"
+
+        if name != "Nothing":
+            page = site.pages[name]
+            revs = list(page.revisions())
+            #load sentiment pipeline
+            sentiment_pip = pipeline("sentiment-analysis")
+            #sort in reverse order
+            revs = sorted(revs, key=lambda rev: rev['timestamp'])
+            edits = {}
+            for rev in tqdm(revs):
+                if 'comment' in rev:
+                    date = strftime("%Y-%m-%d",rev['timestamp'])
+                    if date not in edits:
+                        edits[date] = dict(sentiments=list(),edit_count=0)
+                    edits[date]['edit_count'] +=1
+                    sent = sentiment_pip(rev['comment'])[0]
+                    if sent['label'] == "NEGATIVE":
+                        sent['score'] *= -1
+                    edits[date]['sentiments'].append(np.mean(sent['score']))
+
+            df = pd.DataFrame.from_dict(edits,orient="index")
+            df.index = pd.to_datetime(df.index)
+            #fill in missing days
+            dates_all = pd.date_range(start=next(iter(edits)),end=datetime.today())
+            df = df.reindex(dates_all,fill_value=0)
+            df['sentiments'] = df['sentiments'].apply(lambda x: calculate_mean(x))
+            # plt.plot(df.index.to_numpy(),df['edit_count'].to_numpy())
+            # plt.hist(df['sentiments'].to_numpy(),bins=75)
+            # plt.show()
+            #add these to data and add feature names
+            # print(self.data)
+            # print(df)
+            len_t = len(self.data)
+            self.data = pd.merge(self.data, df, left_index=True, right_index=True, how='outer')
+            self.data = self.data.fillna(0)
+            self.data = self.data.tail(len_t)
+            #write the feature names to your saved lists
+            self.features = self.features + ['sentiments','edit_count']
+            self.non_close_features = self.non_close_features + ['sentiments','edit_count']
+
     def prepare_data(self, data):
         #FRED features
-        self.fred_data()   
+        self.fred_data()
+        self.mw_data()
         # Extract relevant features
         data = self.data[self.features]
 

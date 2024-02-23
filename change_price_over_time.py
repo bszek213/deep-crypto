@@ -7,15 +7,16 @@ import os
 import matplotlib as mpl
 from tqdm import tqdm
 import calendar
-from EntropyHub import PermEn, ApEn
+# from EntropyHub import PermEn, ApEn
 from scipy.stats import entropy
 import seaborn as sns
+from scipy.optimize import curve_fit
 
 mpl.rcParams['font.weight'] = 'bold'
 mpl.rcParams['axes.labelweight'] = 'bold'
+
 """
-Change price over time AND
-Entropy-Causality Plane
+Change price and Rainbow weighted average plots
 """
 
 def get_price(crypt):
@@ -29,6 +30,7 @@ def get_price(crypt):
         print(f'{crypt_name} has no data. No connection to yfinance')
         exit()
     price_data = temp.history(period = 'max', interval="1d")
+    price_data.index = pd.to_datetime(price_data.index)
     return price_data
 
 def bin_data_weekly(df,crypt):
@@ -161,14 +163,63 @@ def ent_causality(price):
     except:
         return np.nan
 
+def logFunc(x,a,b,c):
+    return a*np.log(b+x) + c
+
+def logFunc_simple(x, a, c):
+    return a * np.log(x) + c
+
+def rainbow_plot(price,crypt):
+    price['average_price'] = (price['Close'] + price['High'] + price['Low']) / 3
+    price = price[price["average_price"] > 0]
+
+    xdata = np.array([x+1 for x in range(len(price['average_price']))])
+    ydata = np.log(price['average_price'])
+    # try:
+    try:
+        popt, _ = curve_fit(logFunc, xdata, ydata, maxfev=5000)
+        fittedYData = logFunc(xdata, popt[0], popt[1], popt[2])
+    except:
+        print('=============')
+        print(f'curve fit for a*np.log(b+x) + c failed for {crypt}. Using a * np.log(x) + c instead')
+        print('=============')
+        popt, _ = curve_fit(logFunc_simple, xdata, ydata, maxfev=5000)
+        fittedYData = logFunc_simple(xdata, popt[0], popt[1])
+
+    # This is our fitted data, remember we will need to get the ex of it to graph it
+    
+    plt.style.use("dark_background")
+    plt.figure(figsize=(15,8))
+    plt.semilogy(price.index.to_numpy(), price['average_price'].to_numpy())
+    plt.title(f'{crypt} Rainbow Chart')
+    plt.xlabel('Time')
+    plt.ylabel(f'{crypt} price in log scale')
+
+    for i in np.arange(-0.5, 4, 0.5):
+        price[f"fitted_data{i}"] = np.exp(fittedYData + i*.455)
+        # plt.plot(price.index.to_numpy(), np.exp(fittedYData + i*.455))
+        plt.fill_between(price.index.to_numpy(), np.exp(fittedYData + i*.45 -1), np.exp(fittedYData + i*.45), alpha=0.4)
+
+    if not os.path.exists('figures_rainbow'):
+        os.mkdir('figures_rainbow')
+    save_path = os.path.join(os.getcwd(),'figures_rainbow',f'{crypt}_rainbow.png')
+    plt.savefig(save_path,dpi=375)
+    plt.close()
+    # except:
+    #     print(f'curve_fit failed for {crypt}')
+
 def main():
-    list_crypt = ['^RUT','^DJI',"^GSPC","VOO",'BTC','ETH','ADA','MATIC','DOGE',
-                    'SOL','DOT','SHIB','TRX','FIL','LINK',
-                    'APE','MANA',"AVAX","ZEC","ICP","FLOW",
+    list_crypt = ['^RUT','^DJI',"^GSPC","VOO",'BTC','ETH',
+                  'ADA','MATIC','DOGE',
+                    'SOL','DOT','SHIB',
+                    'TRX','FIL','LINK',
+                    'APE','MANA',"AVAX",
+                    "ZEC","ICP","FLOW",
                     "EGLD","XTZ","LTC"]
     ent = []
     for crypt in tqdm(list_crypt):
         price_data = get_price(crypt)
+        rainbow_plot(price_data,crypt)
         # bin_data_monthly(price_data,crypt)
         # bin_data_weekly(price_data,crypt)
         ent.append(ent_causality(price_data))

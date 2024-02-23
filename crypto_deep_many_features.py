@@ -21,6 +21,7 @@ from fredapi import Fred
 import mwclient
 from transformers import pipeline
 from time import strftime
+from tensorflow.keras.models import Model
 
 """
 TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
@@ -35,6 +36,7 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
     regularizer_l1 = tf.keras.regularizers.l1(regularizer_strength_l1)
     regularizer_l2 = tf.keras.regularizers.l2(regularizer_strength_l2)
     
+    #Batch Norm layer
     model = tf.keras.models.Sequential([
         tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=1, max_value=20, step=1),
                                                            activation=activation_choice, return_sequences=False,
@@ -44,6 +46,17 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
         tf.keras.layers.Dense(n_outputs, 
                               hp.Choice('dense_activation', values=['linear','leaky_relu', 'tanh']))
     ])
+
+    #Try Attention layer
+    # inputs = tf.keras.layers.Input(shape=(n_steps, n_features))
+    # lstm_out = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(units=hp.Int('units', min_value=1, max_value=20, step=1),
+    #                             activation=activation_choice,
+    #                             return_sequences=True,
+    #                             kernel_regularizer=regularizer_l2,
+    #                             recurrent_regularizer=regularizer_l1))(inputs)
+    # attention_out = tf.keras.layers.Attention()([lstm_out, lstm_out])
+    # outputs = tf.keras.layers.Dense(n_outputs, activation=hp.Choice('dense_activation', values=['linear','leaky_relu', 'tanh']))(attention_out)
+    # model = Model(inputs=inputs, outputs=outputs)
 
     optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop']) #, 'sgd'
     if optimizer_choice == 'adam':
@@ -525,7 +538,7 @@ class changePricePredictor:
             # model = self.create_model()
             #TUNE LSTM
             tuner = RandomSearch(
-                lambda hp: create_lstm_model(hp, self.n_steps, self.n_features, self.n_outputs),
+                lambda hp: create_lstm_model(hp, self.n_steps, len(self.features), self.n_outputs),
                 objective='val_mean_absolute_error', #val_loss
                 max_trials=30,
                 directory=f'{self.crypt_name}_lstm_hp',

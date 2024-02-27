@@ -11,6 +11,9 @@ python3 crypto_deep_many_features.py all test #check the output for all cryptos
 python3 crypto_deep_many_features.py all notest #perform training or create future prediction
 python3 crypto_deep_many_features.py BTC test #check output for individiual crypto, in this case BTC.
 python3 crypto_deep_many_features.py BTC notest #perform training or create future forecast for individual crypto, in this case BTC.
+#change price over time
+python3 change_price_over_time.py all #run all cryptos from a predefined list
+python3 change_price_over_time.py BTC #input a crypto or stock that is recognized by yahoo finance
 ```
 ### Correlated Features
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png)

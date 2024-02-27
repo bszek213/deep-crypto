@@ -11,6 +11,7 @@ import calendar
 from scipy.stats import entropy
 import seaborn as sns
 from scipy.optimize import curve_fit
+from sys import argv
 
 mpl.rcParams['font.weight'] = 'bold'
 mpl.rcParams['axes.labelweight'] = 'bold'
@@ -209,30 +210,37 @@ def rainbow_plot(price,crypt):
     #     print(f'curve_fit failed for {crypt}')
 
 def main():
-    list_crypt = ['^RUT','^DJI',"^GSPC","VOO",'BTC','ETH',
-                  'ADA','MATIC','DOGE',
-                    'SOL','DOT','SHIB',
-                    'TRX','FIL','LINK',
-                    'APE','MANA',"AVAX",
-                    "ZEC","ICP","FLOW",
-                    "EGLD","XTZ","LTC"]
-    ent = []
-    for crypt in tqdm(list_crypt):
+    if argv[1] == "all":
+        list_crypt = ['^RUT','^DJI',"^GSPC","VOO",'BTC','ETH',
+                    'ADA','MATIC','DOGE',
+                        'SOL','DOT','SHIB',
+                        'TRX','FIL','LINK',
+                        'APE','MANA',"AVAX",
+                        "ZEC","ICP","FLOW",
+                        "EGLD","XTZ","LTC"]
+        ent = []
+        for crypt in tqdm(list_crypt):
+            price_data = get_price(crypt)
+            rainbow_plot(price_data,crypt)
+            bin_data_monthly(price_data,crypt)
+            # bin_data_weekly(price_data,crypt)
+            ent.append(ent_causality(price_data))
+        df = pd.DataFrame({'Crypto': list_crypt, 'Entropy': ent})
+        df_sorted = df.sort_values(by='Entropy')
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x='Entropy', y='Crypto', data=df_sorted, palette='deep')
+        plt.xlabel('Shannon Entropy')
+        plt.ylabel('Crypto')
+        plt.title('Shannon Entropy of Returns (Lowest to Highest)')
+        plt.tight_layout()
+        plt.savefig("Entropy_cryptos_stock_market.png",dpi=400)
+    else:
+        crypt = argv[1]
         price_data = get_price(crypt)
         rainbow_plot(price_data,crypt)
-        # bin_data_monthly(price_data,crypt)
+        bin_data_monthly(price_data,crypt)
         # bin_data_weekly(price_data,crypt)
-        ent.append(ent_causality(price_data))
-    df = pd.DataFrame({'Crypto': list_crypt, 'Entropy': ent})
-    df_sorted = df.sort_values(by='Entropy')
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='Entropy', y='Crypto', data=df_sorted, palette='deep')
-    plt.xlabel('Shannon Entropy')
-    plt.ylabel('Crypto')
-    plt.title('Shannon Entropy of Returns (Lowest to Highest)')
-    plt.tight_layout()
-    plt.savefig("Entropy_cryptos_stock_market.png",dpi=400)
 
-        
+ 
 if __name__ == "__main__":
     main()

@@ -23,11 +23,11 @@ python3 change_price_over_time.py BTC #input a crypto or stock that is recognize
 ![](https://github.com/bszek213/deep-crypto/blob/dev/figures/BTC_future_price.png)
 ### Relationship between Data Length and MAPE
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_data_len.png)
-### By Week and Month Analysis
+### Month Analysis
 Month
 ![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_month.png)
-Week
-![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_week.png)
+<!-- Week
+![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_week.png) -->
 ### Rainbow Log plot of BTC
 ![](https://github.com/bszek213/deep-crypto/blob/dev/figures_rainbow/BTC_rainbow.png)
 ### Shannon Entropy on the log returns on cryptos and stock market

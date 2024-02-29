@@ -11,7 +11,10 @@ import calendar
 from scipy.stats import entropy
 import seaborn as sns
 from scipy.optimize import curve_fit
-from sys import argv
+# from sys import argv
+import argparse
+import requests
+from bs4 import BeautifulSoup
 
 mpl.rcParams['font.weight'] = 'bold'
 mpl.rcParams['axes.labelweight'] = 'bold'
@@ -21,15 +24,15 @@ Change price and Rainbow weighted average plots
 """
 
 def get_price(crypt):
-    if crypt != "^GSPC" and crypt != "VOO" and crypt != "^DJI" and crypt != "^RUT":
-        crypt_name = crypt + '-USD'
-    else:
-        crypt_name = crypt
+    # if crypt != "^GSPC" and crypt != "VOO" and crypt != "^DJI" and crypt != "^RUT":
+    #     crypt_name = crypt + '-USD'
+    # else:
+    #     crypt_name = crypt
 
-    temp = yf.Ticker(crypt_name)
+    temp = yf.Ticker(crypt)
     if len(temp.history(period = 'max', interval="1d")) < 1:
-        print(f'{crypt_name} has no data. No connection to yfinance')
-        exit()
+        print(f'{crypt} has no data. No connection to yfinance')
+        # exit()
     price_data = temp.history(period = 'max', interval="1d")
     price_data.index = pd.to_datetime(price_data.index)
     return price_data
@@ -209,8 +212,24 @@ def rainbow_plot(price,crypt):
     # except:
     #     print(f'curve_fit failed for {crypt}')
 
+def get_trending_tickers():
+    url = "https://finance.yahoo.com/trending-tickers"
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, "html.parser")
+        ticker_elements = soup.find_all("a", class_="Fw(600)")
+        trending_tickers = [ticker.text for ticker in ticker_elements]
+        return trending_tickers
+    else:
+        print("Failed to fetch data from Yahoo Finance.")
+        return []
+    
 def main():
-    if argv[1] == "all":
+    parser = argparse.ArgumentParser(description='Process crypt names')
+    parser.add_argument('--name', required=True, help='Name of the crypt. If you want all cryptos type all_cryptos, if you want all trending stocks type trending')
+    parser.add_argument('--extension', required=True, help='add -USD extension to crypto: either True or False')
+    args = parser.parse_args()
+    if args.name == "all_cryptos":
         list_crypt = ['^RUT','^DJI',"^GSPC","VOO",'BTC','ETH',
                     'ADA','MATIC','DOGE',
                         'SOL','DOT','SHIB',
@@ -220,6 +239,7 @@ def main():
                         "EGLD","XTZ","LTC"]
         ent = []
         for crypt in tqdm(list_crypt):
+            crypt = crypt + '-USD'
             price_data = get_price(crypt)
             rainbow_plot(price_data,crypt)
             bin_data_monthly(price_data,crypt)
@@ -234,8 +254,21 @@ def main():
         plt.title('Shannon Entropy of Returns (Lowest to Highest)')
         plt.tight_layout()
         plt.savefig("Entropy_cryptos_stock_market.png",dpi=400)
+    elif args.name == "trending":
+            trending_list = get_trending_tickers()
+            print("Trending Tickers:", trending_list)
+            for listing in tqdm(trending_list):
+                try:
+                    price_data = get_price(listing)
+                    rainbow_plot(price_data,listing)
+                    bin_data_monthly(price_data,listing)
+                except Exception as e:
+                    print(f'no yfinance data for {listing}: {e}')
+
     else:
-        crypt = argv[1]
+        crypt = args.name
+        if args.extension == "True":
+            crypt = crypt + '-USD'
         price_data = get_price(crypt)
         rainbow_plot(price_data,crypt)
         bin_data_monthly(price_data,crypt)

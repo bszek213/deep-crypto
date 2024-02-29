@@ -3,7 +3,7 @@
 Deep learning to forecast cryptocurrency prices 7 days in the future. Here are all the cryptos that have models:
 'BTC','ETH','ADA','MATIC','DOGE','SOL','DOT','SHIB','TRX','FIL','LINK','APE','MANA',"AVAX","ZEC","ICP","FLOW","EGLD","XTZ","LTC"
 
-Currently, there are 182 features to help with the forecasting of the close price.
+Currently, there are 182 features to help with the forecasting of the close price
 ## Usage
 
 ```bash
@@ -12,8 +12,10 @@ python3 crypto_deep_many_features.py all notest #perform training or create futu
 python3 crypto_deep_many_features.py BTC test #check output for individiual crypto, in this case BTC.
 python3 crypto_deep_many_features.py BTC notest #perform training or create future forecast for individual crypto, in this case BTC.
 #change price over time
-python3 change_price_over_time.py all #run all cryptos from a predefined list
-python3 change_price_over_time.py BTC #input a crypto or stock that is recognized by yahoo finance
+python3 change_price_over_time.py --name all_cryptos --extension True #run all cryptos from a predefined list
+python3 change_price_over_time.py --name trending --extension False #run analysis on trending stocks from Yahoo Finance
+python3 change_price_over_time.py --name BTC --extension True #run individual crypto
+python3 change_price_over_time.py --name ^DJI --extension False #run individual stock
 ```
 ### Correlated Features
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png)

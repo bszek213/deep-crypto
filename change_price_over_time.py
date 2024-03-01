@@ -22,6 +22,16 @@ mpl.rcParams['axes.labelweight'] = 'bold'
 """
 Change price and Rainbow weighted average plots
 """
+def delete_png_files(directory):
+    try:
+        files = os.listdir(directory)
+        for file in files:
+            if file.endswith(".png"):
+                file_path = os.path.join(directory, file)
+                os.remove(file_path)
+                print(f"Deleted: {file_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def get_price(crypt):
     # if crypt != "^GSPC" and crypt != "VOO" and crypt != "^DJI" and crypt != "^RUT":
@@ -226,11 +236,15 @@ def get_trending_tickers():
     
 def main():
     parser = argparse.ArgumentParser(description='Process crypt names')
-    parser.add_argument('--name', required=True, help='Name of the crypt. If you want all cryptos type all_cryptos, if you want all trending stocks type trending')
+    parser.add_argument('--name', required=True, help='Name of the crypt. If you want all trending and cryptos type all')
     parser.add_argument('--extension', required=True, help='add -USD extension to crypto: either True or False')
     args = parser.parse_args()
-    if args.name == "all_cryptos":
-        list_crypt = ['^RUT','^DJI',"^GSPC","VOO",'BTC','ETH',
+    #delete old images
+    delete_png_files(os.path.join(os.getcwd(),'figures_rainbow'))
+    delete_png_files(os.path.join(os.getcwd(),'price_change'))
+    if args.name == "all":
+        #cryptos
+        list_crypt = ['BTC','ETH',
                     'ADA','MATIC','DOGE',
                         'SOL','DOT','SHIB',
                         'TRX','FIL','LINK',
@@ -254,17 +268,18 @@ def main():
         plt.title('Shannon Entropy of Returns (Lowest to Highest)')
         plt.tight_layout()
         plt.savefig("Entropy_cryptos_stock_market.png",dpi=400)
-    elif args.name == "trending":
-            trending_list = get_trending_tickers()
-            print("Trending Tickers:", trending_list)
-            for listing in tqdm(trending_list):
-                try:
-                    price_data = get_price(listing)
-                    rainbow_plot(price_data,listing)
-                    bin_data_monthly(price_data,listing)
-                except Exception as e:
-                    print(f'no yfinance data for {listing}: {e}')
 
+        #trending
+        trending_list = get_trending_tickers()
+        print("Trending Tickers:", trending_list)
+        trending_list = trending_list + ['^RUT','^DJI',"^GSPC","VOO"]
+        for listing in tqdm(trending_list):
+            try:
+                price_data = get_price(listing)
+                rainbow_plot(price_data,listing)
+                bin_data_monthly(price_data,listing)
+            except Exception as e:
+                print(f'no yfinance data for {listing}: {e}')
     else:
         crypt = args.name
         if args.extension == "True":

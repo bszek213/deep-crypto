@@ -12,8 +12,7 @@ python3 crypto_deep_many_features.py all notest #perform training or create futu
 python3 crypto_deep_many_features.py BTC test #check output for individiual crypto, in this case BTC.
 python3 crypto_deep_many_features.py BTC notest #perform training or create future forecast for individual crypto, in this case BTC.
 #change price over time
-python3 change_price_over_time.py --name all_cryptos --extension True #run all cryptos from a predefined list
-python3 change_price_over_time.py --name trending --extension False #run analysis on trending stocks from Yahoo Finance
+python3 change_price_over_time.py --name all --extension True #run all cryptos from a predefined list AND yfinance's trending list
 python3 change_price_over_time.py --name BTC --extension True #run individual crypto
 python3 change_price_over_time.py --name ^DJI --extension False #run individual stock
 ```

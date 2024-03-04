@@ -23,6 +23,7 @@ from transformers import pipeline
 from time import strftime
 from tensorflow.keras.models import Model
 
+
 """
 TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
       feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
@@ -316,47 +317,47 @@ class changePricePredictor:
                     "EGLD","XTZ","LTC","XRP"] 
         site = mwclient.Site("en.wikipedia.org")
         #handle names
-        if argv[1] == "BTC":
+        if self.crypt_name == "BTC":
             name = "Bitcoin"
-        elif argv[1] == "ETH":
+        elif self.crypt_name == "ETH":
             name = "Ethereum"
-        elif argv[1] == "ADA":
+        elif self.crypt_name == "ADA":
             name = "Cardano (blockchain platform)"
-        elif argv[1] == "MATIC":
+        elif self.crypt_name == "MATIC":
             name = "Polygon (blockchain)"
-        elif argv[1] == "DOGE":
+        elif self.crypt_name == "DOGE":
             name = "Dogecoin"
-        elif argv[1] == "SOL":
+        elif self.crypt_name == "SOL":
             name = "Solana (blockchain platform)"
-        elif argv[1] == "DOT":
+        elif self.crypt_name == "DOT":
             name = "Polkadot (cryptocurrency)"
-        elif argv[1] == "SHIB":
+        elif self.crypt_name == "SHIB":
             name = "Shiba Inu (cryptocurrency)"
-        elif argv[1] == "TRX":
+        elif self.crypt_name == "TRX":
             name = "Tron (cryptocurrency)"
-        elif argv[1] == "FIL":
+        elif self.crypt_name == "FIL":
             name = "Filecoin"
-        elif argv[1] == "LINK":
+        elif self.crypt_name == "LINK":
             name = "Chainlink (blockchain)"
-        elif argv[1] == "APE":
+        elif self.crypt_name == "APE":
             name = "Bored Ape"
-        elif argv[1] == "MANA":
+        elif self.crypt_name == "MANA":
             name = "Decentraland"
-        elif argv[1] == "AVAX":
+        elif self.crypt_name == "AVAX":
             name = "Avalanche (blockchain platform)"
-        elif argv[1] == "ZEC":
+        elif self.crypt_name == "ZEC":
             name = "Zcash"
-        elif argv[1] == "ICP": #does not have one
+        elif self.crypt_name == "ICP": #does not have one
             name = "Nothing"
-        elif argv[1] == "FLOW":
+        elif self.crypt_name == "FLOW":
             name = "Flow Traders"
-        elif argv[1] == "EGLD":
+        elif self.crypt_name == "EGLD":
             name = "Nothing"
-        elif argv[1] == "XTZ":
+        elif self.crypt_name == "XTZ":
             name = "Tezos"
-        elif argv[1] == "LTC":
+        elif self.crypt_name == "LTC":
             name = "Litecoin"
-        elif argv[1] == "XRP":
+        elif self.crypt_name == "XRP":
             name = "Ripple (payment protocol)"
 
         if name != "Nothing":

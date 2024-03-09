@@ -25,9 +25,9 @@ from tensorflow.keras.models import Model
 
 
 """
-TODO: feature engineer - running average features at different intervals - 7, 14, 30. 
-      feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
+TODO: feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
       change you you handle storing which features to keep and discard, be better than just a large list
+      save mape for each crypto over time to get a cumulative error.
 """
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh', 'linear'])

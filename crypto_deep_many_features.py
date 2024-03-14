@@ -248,7 +248,7 @@ class changePricePredictor:
         plt.axhline(y=df['r1'].iloc[-1], color='r', linestyle='--', label='Resistance 1')
         plt.axhline(y=df['r2'].iloc[-1], color='orange', linestyle='--', label='Resistance 2')
         plt.axhline(y=df['r3'].iloc[-1], color='tab:cyan', linestyle='--', label='Resistance 3')
-        plt.axhline(y=df['s3'].iloc[-1], color='tab:brown', linestyle='--', label='Support 2')
+        plt.axhline(y=df['s3'].iloc[-1], color='tab:brown', linestyle='--', label='Support 3')
 
         plt.title(f'{self.crypt_name} Current Pivot points - Plot Last 2 Months')
         plt.xlabel('Date')

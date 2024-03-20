@@ -22,7 +22,7 @@ import mwclient
 from transformers import pipeline
 from time import strftime
 from tensorflow.keras.models import Model
-
+from sklearn.decomposition import PCA
 
 """
 TODO: feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
@@ -45,7 +45,7 @@ def create_lstm_model(hp, n_steps, n_features, n_outputs):
                                                            input_shape=(n_steps, n_features))),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.Dense(n_outputs, 
-                              hp.Choice('dense_activation', values=['linear','leaky_relu', 'tanh']))
+                              hp.Choice('dense_activation', values=['leaky_relu', 'tanh'])) #'linear'
     ])
 
     #Try Attention layer
@@ -127,13 +127,26 @@ def feature_engineer(data):
             data[f'{col}_short'] = data[col].rolling(window=7,min_periods=1).mean()
             data[f'{col}_med'] = data[col].rolling(window=31,min_periods=1).mean()
             data[f'{col}_long'] = data[col].rolling(window=90,min_periods=1).mean()
+            # #skewness
+            # data[f'{col}_short_skew'] = data[col].rolling(window=7,min_periods=1).skew()
+            # data[f'{col}_med_skew'] = data[col].rolling(window=31,min_periods=1).skew()
+            # data[f'{col}_long_skew'] = data[col].rolling(window=90,min_periods=1).skew()
+            # #kurt
+            # data[f'{col}_short_kurt'] = data[col].rolling(window=7,min_periods=1).kurt()
+            # data[f'{col}_med_kurt'] = data[col].rolling(window=31,min_periods=1).kurt()
+            # data[f'{col}_long_kurt'] = data[col].rolling(window=90,min_periods=1).kurt()
+            #variance
+            # data[f'{col}_short_var'] = data[col].rolling(window=7,min_periods=1).var()
+            # data[f'{col}_med_kurt_var'] = data[col].rolling(window=31,min_periods=1).var()
+            # data[f'{col}_long_kurt_var'] = data[col].rolling(window=90,min_periods=1).var()
     #add day of the week and month
-    data['day_of_week'] = data.index.weekday
-    data['month'] = data.index.month
+    # data['day_of_week'] = data.index.weekday
+    # data['month'] = data.index.month
     return data
 
 class changePricePredictor:
     def __init__(self, crypt, n_features, n_steps, n_outputs, n_epochs, batch_size):
+        self.which_analysis = 'pca' #pca or corr
         self.crypt_name = crypt
         # self.n_features = n_features
         self.n_steps = n_steps
@@ -409,6 +422,7 @@ class changePricePredictor:
         # Scale data
         # self.scaler2 = MinMaxScaler(feature_range=(0, 1))
         self.scaler2 = StandardScaler()
+        self.pca = PCA(n_components=0.95)
         # self.scaler1 = MinMaxScaler(feature_range=(0, 1))
         # self.scaler1 = StandardScaler()
         
@@ -438,27 +452,41 @@ class changePricePredictor:
         # data_non_close['typical_price_usd_euro'].fillna(method='bfill', inplace=True)
 
         #Remove correlated features
-        threshold = 0.95
-        correlation_matrix = data_non_close.corr()
-        mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
-        to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix.loc[column, mask[:, correlation_matrix.columns.get_loc(column)]] > threshold)]
-        print(Fore.LIGHTCYAN_EX, Style.BRIGHT,f'Features to be removed: {to_drop}',Style.RESET_ALL)
-        self.drop_features = to_drop
-        #features to keep
-        self.non_close_features = [item for item in self.non_close_features if item not in to_drop]
-        # Remove highly correlated features
-        data_non_close = data_non_close.drop(columns=to_drop)
-        # Create and save a heatmap plot
-        plt.figure(figsize=(20, 20))
-        heatmap(correlation_matrix, cmap="coolwarm", mask=mask)
-        plt.title("Correlation Heatmap")
-        plt.tight_layout()
-        plt.savefig("correlation_heatmap.png")
-        plt.close()
-
-        data_non_close = self.scaler2.fit_transform(data_non_close)
-        self.data_non_close_save = data_non_close
-        data = np.concatenate((data_close, data_non_close), axis=1)
+        if self.which_analysis == 'corr':
+            threshold = 0.95
+            correlation_matrix = data_non_close.corr()
+            mask = np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
+            to_drop = [column for column in correlation_matrix.columns if any(correlation_matrix.loc[column, mask[:, correlation_matrix.columns.get_loc(column)]] > threshold)]
+            print(Fore.LIGHTCYAN_EX, Style.BRIGHT,f'Features to be removed: {to_drop}',Style.RESET_ALL)
+            self.drop_features = to_drop
+            #features to keep
+            self.non_close_features = [item for item in self.non_close_features if item not in to_drop]
+            # Remove highly correlated features
+            data_non_close = data_non_close.drop(columns=to_drop)
+            # Create and save a heatmap plot
+            plt.figure(figsize=(20, 20))
+            heatmap(correlation_matrix, cmap="coolwarm", mask=mask)
+            plt.title("Correlation Heatmap")
+            plt.tight_layout()
+            plt.savefig("correlation_heatmap.png")
+            plt.close()
+            data_non_close = self.scaler2.fit_transform(data_non_close)
+            self.data_non_close_save = data_non_close
+            data = np.concatenate((data_close, data_non_close), axis=1)
+        else:
+            data_non_close = self.scaler2.fit_transform(data_non_close)
+            print(f'Number of features before PCA: {data_non_close.shape[1]}')
+            self.data_non_close_save = self.pca.fit_transform(data_non_close)
+            print(f'Number of features after PCA: {self.data_non_close_save.shape[1]}')
+            plt.figure()
+            plt.figure(figsize=(8, 6))
+            plt.bar(range(self.pca.n_components_), self.pca.explained_variance_ratio_)
+            plt.xlabel('Principal Component')
+            plt.ylabel('Explained Variance Ratio')
+            plt.title('Explained Variance Ratio of Principal Components')
+            plt.savefig('pca_components.png',dpi=400)
+            plt.close()
+            data = np.concatenate((data_close, self.data_non_close_save), axis=1)
 
         # data_sorted = np.sort(data[:,0])
         # q1, q3 = np.percentile(data_sorted, [25, 75])

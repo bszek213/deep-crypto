@@ -23,6 +23,7 @@ from transformers import pipeline
 from time import strftime
 from tensorflow.keras.models import Model
 from sklearn.decomposition import PCA
+from sampen import sampen2
 
 """
 TODO: feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
@@ -143,6 +144,30 @@ def feature_engineer(data):
     # data['day_of_week'] = data.index.weekday
     # data['month'] = data.index.month
     return data
+
+def box_count(data, box_size):
+    """
+    Count the number of boxes needed to cover the data at a given box size.
+    """
+    num_boxes = len(data) // box_size
+    return num_boxes
+
+def calculate_fractal_dimension(data):
+    """
+    Calculate the fractal dimension using the box-counting method.
+    """
+    box_sizes = np.logspace(0.1, 3, 100, dtype=int)
+    box_counts = []
+
+    for box_size in box_sizes:
+        num_boxes = box_count(data, box_size)
+        box_counts.append(num_boxes)
+
+    log_box_sizes = np.log(box_sizes)
+    log_box_counts = np.log(box_counts)
+    slope, _ = np.polyfit(log_box_sizes, log_box_counts, 1)
+
+    return slope
 
 class changePricePredictor:
     def __init__(self, crypt, n_features, n_steps, n_outputs, n_epochs, batch_size):
@@ -853,6 +878,10 @@ class changePricePredictor:
                 price_err = yaml.safe_load(file)
         price_len = []
         error_val = []
+        sample_entropy_list = []
+        fractal_list = []
+
+
         #MAPE vs. ERR correlate
         for key, value in err_data.items():
             if value[0] < 1:
@@ -860,13 +889,25 @@ class changePricePredictor:
                 if key != "SP":
                     crypt_name = key + '-USD'
                     temp = yf.Ticker(crypt_name)
+                    df_crypt = temp.history(period = 'max', interval="1d")
+                    #Sample entropy
+                    avg_price = (df_crypt['High'] + df_crypt['Close'] + df_crypt['Low']) / 3
+                    sample_entropy_list.append(sampen2(avg_price.values)[2][1])
+                    #Fractal Dimension 
+                    fractal_list.append(calculate_fractal_dimension(avg_price))
+
                     price_len.append(len(temp.history(period = 'max', interval="1d")))
                     error_val.append(value[0])
-        data = pd.DataFrame({"MAPE":error_val,"data_len":price_len})
+        sample_entropy_list = [value if value is not None else 0 for value in sample_entropy_list]
+        data = pd.DataFrame({"MAPE":error_val,"data_len":price_len, 
+                             'sampEn': sample_entropy_list, 'fractal_dim':fractal_list})
         # data = data[data['MAPE'] <= 35] #for visualization
         print('ERROR VS. MAPE DF')
-        print(data.sort_values(by=['data_len'],ascending=False))
+        # print(data.sort_values(by=['data_len'],ascending=False))
+        print(data)
         r_val, p_val = pearsonr(data['MAPE'],data['data_len'])
+        r_val_se, p_val_se = pearsonr(data['MAPE'],data['sampEn'])
+        r_val_frac, p_val_frac = pearsonr(data['MAPE'],data['fractal_dim'])
 
         #PRED PRICE
         crypt_7_day_pos_neg = {}
@@ -894,6 +935,22 @@ class changePricePredictor:
         print('========================================================')
         plt.tight_layout()
         plt.savefig('correl_mape_data_len.png',dpi=400)
+        plt.close()
+        #sampen vs avg price
+        g = regplot(data,x='MAPE',y='sampEn',ci=None)
+        plt.text(0.9, 0.9, f'r^2 = {r_val_se**2:.2f}\np = {p_val_se:.2e}', transform=g.transAxes, ha='center')
+        print(f"Correlation between MAPE vs. Sample Entropy of the Price Data: {(r_val_se,p_val_se)}")
+        print('========================================================')
+        plt.tight_layout()
+        plt.savefig('correl_mape_vs_sampEn.png',dpi=400)
+        plt.close()
+        #power law vs avg price
+        g = regplot(data,x='MAPE',y='fractal_dim',ci=None)
+        plt.text(0.9, 0.9, f'r^2 = {r_val_frac**2:.2f}\np = {p_val_frac:.2e}', transform=g.transAxes, ha='center')
+        print(f"Correlation between MAPE vs. Fractal Dimension of the Price Data: {(r_val_frac,p_val_frac)}")
+        print('========================================================')
+        plt.tight_layout()
+        plt.savefig('correl_mape_vs_frac_dim.png',dpi=400)
         plt.close()
 
     def prediction_pos_neg(self,):

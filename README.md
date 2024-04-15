@@ -28,13 +28,13 @@ python3 change_price_over_time.py --name ^DJI --extension False #run individual 
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_sampEn.png)
 ### Relationship between Fractal Dimension and MAPE
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_frac_dim.png)
-### Month Analysis
+<!-- ### Month Analysis
 Month
-![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_month.png)
+![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_month.png) -->
 <!-- Week
 ![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_week.png) -->
 ### Rainbow Log plot of BTC
-![](https://github.com/bszek213/deep-crypto/blob/dev/figures_rainbow/BTC_rainbow.png)
+![](https://github.com/bszek213/deep-crypto/blob/dev/figures_rainbow/BTC-USD_rainbow.png)
 ### Shannon Entropy on the log returns on cryptos and stock market
 ![](https://github.com/bszek213/deep-crypto/blob/dev/Entropy_cryptos_stock_market.png)
 ### Contributing

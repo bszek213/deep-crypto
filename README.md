@@ -25,7 +25,7 @@ python3 change_price_over_time.py --name ^DJI --extension False #run individual 
 ### Relationship between Data Length and MAPE
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_data_len.png)
 ### Relationship between Sample Entropy and MAPE
-![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_sampEn.png)
+![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_sampEn.png)
 ### Relationship between Fractal Dimension and MAPE
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_frac_dim.png)
 ### Month Analysis

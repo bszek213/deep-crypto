@@ -20,6 +20,8 @@ python3 change_price_over_time.py --name ^DJI --extension False #run individual 
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png)
 ### Forecasting error
 ![](https://github.com/bszek213/deep-crypto/blob/dev/error_plot.png)
+### Forecasting change predictions for all cryptos
+![](https://github.com/bszek213/deep-crypto/blob/dev/mean_with_std_plot.png)
 ### Forecasting examples of BTC
 ![](https://github.com/bszek213/deep-crypto/blob/dev/figures/BTC_future_price.png)
 ### Relationship between Data Length and MAPE

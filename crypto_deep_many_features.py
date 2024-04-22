@@ -953,6 +953,59 @@ class changePricePredictor:
         plt.savefig('correl_mape_vs_frac_dim.png',dpi=400)
         plt.close()
 
+    def plot_pct_change_all_cryptos(self):
+        with open('crypto_pre_error.yaml', 'r') as file:
+            data = yaml.safe_load(file)
+
+        # Cryptocurrency keys
+        available_crypt = list(data.keys())
+        list_crypt = ['BTC', 'ETH', 'ADA', 'MATIC', 'DOGE', 'SOL', 'DOT', 'SHIB', 'TRX', 'FIL', 'LINK',
+                    'APE', 'MANA', "AVAX", "ZEC", "ICP", "FLOW", "EGLD", "XTZ", "LTC", "XRP"]
+        list_crypt = [crypt for crypt in list_crypt if crypt in available_crypt]
+
+        # Create a dictionary to store average percentage change and standard deviation for each cryptocurrency
+        dfs = []
+
+        # Iterate through the cryptocurrency keys
+        for crypt in list_crypt:
+            # Check if 'price' array exists
+            if 'price' in data[crypt]:
+                # Filter arrays to ensure they have the same length as 'price'
+                filtered_data = {key: value[:len(data[crypt]['price'])] for key, value in data[crypt].items()}
+
+                time_entry = data[crypt]['time'][0]# datetime.strptime(data[crypt]['time'][0], '%Y-%m-%d %H:%M:%S.%f')
+                time_array = [time_entry + timedelta(days=i) for i in range(len(data[crypt]['price']))]
+                
+                # Convert to DataFrame and set the column header to the cryptocurrency name
+                df_crypt = pd.DataFrame(filtered_data['price'], columns=[crypt],index=pd.to_datetime(time_array).date)
+                df_crypt[crypt] = df_crypt[crypt].pct_change()*100
+                # Append DataFrame to the list
+                dfs.append(df_crypt)
+
+        # Concatenate DataFrames along the columns axis
+        result_df = pd.concat(dfs, axis=1).dropna()
+
+        row_std = result_df.std(axis=1)
+        row_mean = result_df.mean(axis=1)
+
+        # Plot the mean with standard deviation as fill between
+        plt.rcParams["axes.labelweight"] = "bold"
+        plt.rcParams['font.size'] = 14
+        plt.figure(figsize=(12, 10))
+        plt.plot(row_mean, label='Mean', color='blue', linewidth=3)
+        plt.fill_between(result_df.index, row_mean - row_std, row_mean + row_std, alpha=0.6, color='lightblue')
+        # plt.title('Mean with Standard Deviation as Fill Between')
+        plt.xlabel('Date')
+        plt.xticks(rotation=45)
+        plt.ylabel('Predicted Percentage Change For All Cryptos')
+        plt.hlines(xmin=result_df.index[0], xmax=result_df.index[-1],y=0, linewidth=3, color='k')
+        plt.grid(True)
+        plt.tight_layout()
+
+        # Save the plot to a file
+        plt.savefig('mean_with_std_plot.png')
+        plt.close()
+
     def prediction_pos_neg(self,):
         pass
 
@@ -962,6 +1015,7 @@ class changePricePredictor:
             self.plot_error()
         elif argv[2] == "correlate":
             self.correlate_len_error()
+            self.plot_pct_change_all_cryptos()
         else:
             # Prepare data for training
             X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)

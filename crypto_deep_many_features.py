@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-import ta
+# import ta
 import yfinance as yf
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
@@ -21,9 +21,10 @@ from fredapi import Fred
 import mwclient
 from transformers import pipeline
 from time import strftime
-from tensorflow.keras.models import Model
+# from tensorflow.keras.models import Model
 from sklearn.decomposition import PCA
 from sampen import sampen2
+import pandas_ta as ta
 
 """
 TODO: feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
@@ -208,68 +209,103 @@ class changePricePredictor:
         price_data.index = new_index
         
         print(Fore.GREEN,f'NUMBER OF SAMPLES FOR {crypt_name}: {len(price_data)}',Style.RESET_ALL)
-        self.features = ['Close','Open', 'High', 'Low','Volume', 'Dividends', 'Stock Splits',
-                                    'volume_adi', 'volume_obv', 'volume_cmf', 'volume_fi', 'volume_em',
-                                    'volume_sma_em', 'volume_vpt', 'volume_vwap', 'volume_mfi',
-                                    'volume_nvi', 'volatility_bbm', 'volatility_bbh', 'volatility_bbl',
-                                    'volatility_bbw', 'volatility_bbp', 'volatility_bbhi',
-                                    'volatility_bbli', 'volatility_kcc', 'volatility_kch', 'volatility_kcl',
-                                    'volatility_kcw', 'volatility_kcp', 'volatility_kchi',
-                                    'volatility_kcli', 'volatility_dcl', 'volatility_dch', 'volatility_dcm',
-                                    'volatility_dcw', 'volatility_dcp', 'volatility_atr', 'volatility_ui',
-                                    'trend_macd', 'trend_macd_signal', 'trend_macd_diff', 'trend_sma_fast',
-                                    'trend_sma_slow', 'trend_ema_fast', 'trend_ema_slow',
-                                    'trend_vortex_ind_pos', 'trend_vortex_ind_neg', 'trend_vortex_ind_diff',
-                                    'trend_trix', 'trend_mass_index', 'trend_dpo', 'trend_kst',
-                                    'trend_kst_sig', 'trend_kst_diff', 'trend_ichimoku_conv',
-                                    'trend_ichimoku_base', 'trend_ichimoku_a', 'trend_ichimoku_b',
-                                    'trend_stc', 'trend_adx', 'trend_adx_pos', 'trend_adx_neg', 'trend_cci',
-                                    'trend_visual_ichimoku_a', 'trend_visual_ichimoku_b', 'trend_aroon_up',
-                                    'trend_aroon_down', 'trend_aroon_ind', 'trend_psar_up',
-                                    'trend_psar_down', 'trend_psar_up_indicator',
-                                    'trend_psar_down_indicator', 'momentum_rsi', 'momentum_stoch_rsi',
-                                    'momentum_stoch_rsi_k', 'momentum_stoch_rsi_d', 'momentum_tsi',
-                                    'momentum_uo', 'momentum_stoch', 'momentum_stoch_signal', 'momentum_wr',
-                                    'momentum_ao', 'momentum_roc', 'momentum_ppo', 'momentum_ppo_signal',
-                                    'momentum_ppo_hist', 'momentum_pvo', 'momentum_pvo_signal',
-                                    'momentum_pvo_hist', 'momentum_kama', 'others_dr', 'others_dlr',
-                                    'others_cr']
-        self.non_close_features = ['Volume','Open', 'High', 'Low',
-                                    'volume_adi', 'volume_obv', 'volume_cmf', 'volume_fi', 'volume_em',
-                                    'volume_sma_em', 'volume_vpt', 'volume_vwap', 'volume_mfi',
-                                    'volume_nvi', 'volatility_bbm', 'volatility_bbh', 'volatility_bbl',
-                                    'volatility_bbw', 'volatility_bbp', 'volatility_bbhi',
-                                    'volatility_bbli', 'volatility_kcc', 'volatility_kch', 'volatility_kcl',
-                                    'volatility_kcw', 'volatility_kcp', 'volatility_kchi',
-                                    'volatility_kcli', 'volatility_dcl', 'volatility_dch', 'volatility_dcm',
-                                    'volatility_dcw', 'volatility_dcp', 'volatility_atr', 'volatility_ui',
-                                    'trend_macd', 'trend_macd_signal', 'trend_macd_diff', 'trend_sma_fast',
-                                    'trend_sma_slow', 'trend_ema_fast', 'trend_ema_slow',
-                                    'trend_vortex_ind_pos', 'trend_vortex_ind_neg', 'trend_vortex_ind_diff',
-                                    'trend_trix', 'trend_mass_index', 'trend_dpo', 'trend_kst',
-                                    'trend_kst_sig', 'trend_kst_diff', 'trend_ichimoku_conv',
-                                    'trend_ichimoku_base', 'trend_ichimoku_a', 'trend_ichimoku_b',
-                                    'trend_stc', 'trend_adx', 'trend_adx_pos', 'trend_adx_neg', 'trend_cci',
-                                    'trend_visual_ichimoku_a', 'trend_visual_ichimoku_b', 'trend_aroon_up',
-                                    'trend_aroon_down', 'trend_aroon_ind', 'trend_psar_up',
-                                    'trend_psar_down', 'trend_psar_up_indicator',
-                                    'trend_psar_down_indicator', 'momentum_rsi', 'momentum_stoch_rsi',
-                                    'momentum_stoch_rsi_k', 'momentum_stoch_rsi_d', 'momentum_tsi',
-                                    'momentum_uo', 'momentum_stoch', 'momentum_stoch_signal', 'momentum_wr',
-                                    'momentum_ao', 'momentum_roc', 'momentum_ppo', 'momentum_ppo_signal',
-                                    'momentum_ppo_hist', 'momentum_pvo', 'momentum_pvo_signal',
-                                    'momentum_pvo_hist', 'momentum_kama', 'others_dr', 'others_dlr',
-                                    'others_cr'] #'Open', 'High', 'Low', 'Dividends', 'Stock Splits',
+        # self.features = ['Close','Open', 'High', 'Low','Volume', 'Dividends', 'Stock Splits',
+        #                             'volume_adi', 'volume_obv', 'volume_cmf', 'volume_fi', 'volume_em',
+        #                             'volume_sma_em', 'volume_vpt', 'volume_vwap', 'volume_mfi',
+        #                             'volume_nvi', 'volatility_bbm', 'volatility_bbh', 'volatility_bbl',
+        #                             'volatility_bbw', 'volatility_bbp', 'volatility_bbhi',
+        #                             'volatility_bbli', 'volatility_kcc', 'volatility_kch', 'volatility_kcl',
+        #                             'volatility_kcw', 'volatility_kcp', 'volatility_kchi',
+        #                             'volatility_kcli', 'volatility_dcl', 'volatility_dch', 'volatility_dcm',
+        #                             'volatility_dcw', 'volatility_dcp', 'volatility_atr', 'volatility_ui',
+        #                             'trend_macd', 'trend_macd_signal', 'trend_macd_diff', 'trend_sma_fast',
+        #                             'trend_sma_slow', 'trend_ema_fast', 'trend_ema_slow',
+        #                             'trend_vortex_ind_pos', 'trend_vortex_ind_neg', 'trend_vortex_ind_diff',
+        #                             'trend_trix', 'trend_mass_index', 'trend_dpo', 'trend_kst',
+        #                             'trend_kst_sig', 'trend_kst_diff', 'trend_ichimoku_conv',
+        #                             'trend_ichimoku_base', 'trend_ichimoku_a', 'trend_ichimoku_b',
+        #                             'trend_stc', 'trend_adx', 'trend_adx_pos', 'trend_adx_neg', 'trend_cci',
+        #                             'trend_visual_ichimoku_a', 'trend_visual_ichimoku_b', 'trend_aroon_up',
+        #                             'trend_aroon_down', 'trend_aroon_ind', 'trend_psar_up',
+        #                             'trend_psar_down', 'trend_psar_up_indicator',
+        #                             'trend_psar_down_indicator', 'momentum_rsi', 'momentum_stoch_rsi',
+        #                             'momentum_stoch_rsi_k', 'momentum_stoch_rsi_d', 'momentum_tsi',
+        #                             'momentum_uo', 'momentum_stoch', 'momentum_stoch_signal', 'momentum_wr',
+        #                             'momentum_ao', 'momentum_roc', 'momentum_ppo', 'momentum_ppo_signal',
+        #                             'momentum_ppo_hist', 'momentum_pvo', 'momentum_pvo_signal',
+        #                             'momentum_pvo_hist', 'momentum_kama', 'others_dr', 'others_dlr',
+        #                             'others_cr']
+        # self.non_close_features = ['Volume','Open', 'High', 'Low',
+        #                             'volume_adi', 'volume_obv', 'volume_cmf', 'volume_fi', 'volume_em',
+        #                             'volume_sma_em', 'volume_vpt', 'volume_vwap', 'volume_mfi',
+        #                             'volume_nvi', 'volatility_bbm', 'volatility_bbh', 'volatility_bbl',
+        #                             'volatility_bbw', 'volatility_bbp', 'volatility_bbhi',
+        #                             'volatility_bbli', 'volatility_kcc', 'volatility_kch', 'volatility_kcl',
+        #                             'volatility_kcw', 'volatility_kcp', 'volatility_kchi',
+        #                             'volatility_kcli', 'volatility_dcl', 'volatility_dch', 'volatility_dcm',
+        #                             'volatility_dcw', 'volatility_dcp', 'volatility_atr', 'volatility_ui',
+        #                             'trend_macd', 'trend_macd_signal', 'trend_macd_diff', 'trend_sma_fast',
+        #                             'trend_sma_slow', 'trend_ema_fast', 'trend_ema_slow',
+        #                             'trend_vortex_ind_pos', 'trend_vortex_ind_neg', 'trend_vortex_ind_diff',
+        #                             'trend_trix', 'trend_mass_index', 'trend_dpo', 'trend_kst',
+        #                             'trend_kst_sig', 'trend_kst_diff', 'trend_ichimoku_conv',
+        #                             'trend_ichimoku_base', 'trend_ichimoku_a', 'trend_ichimoku_b',
+        #                             'trend_stc', 'trend_adx', 'trend_adx_pos', 'trend_adx_neg', 'trend_cci',
+        #                             'trend_visual_ichimoku_a', 'trend_visual_ichimoku_b', 'trend_aroon_up',
+        #                             'trend_aroon_down', 'trend_aroon_ind', 'trend_psar_up',
+        #                             'trend_psar_down', 'trend_psar_up_indicator',
+        #                             'trend_psar_down_indicator', 'momentum_rsi', 'momentum_stoch_rsi',
+        #                             'momentum_stoch_rsi_k', 'momentum_stoch_rsi_d', 'momentum_tsi',
+        #                             'momentum_uo', 'momentum_stoch', 'momentum_stoch_signal', 'momentum_wr',
+        #                             'momentum_ao', 'momentum_roc', 'momentum_ppo', 'momentum_ppo_signal',
+        #                             'momentum_ppo_hist', 'momentum_pvo', 'momentum_pvo_signal',
+        #                             'momentum_pvo_hist', 'momentum_kama', 'others_dr', 'others_dlr',
+        #                             'others_cr'] #'Open', 'High', 'Low', 'Dividends', 'Stock Splits',
+
+        #pandas ta
+        price_data = price_data.rename_axis("datetime")
+        price_data.drop(labels=['Dividends', 'Stock Splits'], axis=1, inplace=True)
+        function_names = [
+            "aberration", "above", "above_value", "accbands", "ad", "adosc", "adx", "alma", "amat", "ao", "aobv", "apo",
+            "aroon", "atr", "bbands", "below", "below_value", "bias", "bop", "brar", "cci", "cdl_pattern", "cdl_z", "cfo",
+            "cg", "chop", "cksp", "cmf", "cmo", "coppock", "cross", "cross_value", "cti", "decay", "decreasing", "dema",
+            "dm", "donchian", "dpo", "ebsw", "efi", "ema", "entropy", "eom", "er", "eri", "fisher", "fwma", "ha", "hilo",
+            "hl2", "hlc3", "hma", "hwc", "hwma", "ichimoku", "increasing", "inertia", "jma", "kama", "kc", "kdj", "kst",
+            "kurtosis", "kvo", "linreg", "log_return", "long_run", "macd", "mad", "massi", "mcgd", "median", "mfi",
+            "midpoint", "midprice", "mom", "natr", "nvi", "obv", "ohlc4", "pdist", "percent_return", "pgo", "ppo", "psar",
+            "psl", "pvi", "pvo", "pvol", "pvr", "pvt", "pwma", "qqe", "qstick", "quantile", "rma", "roc", "rsi", "rsx",
+            "rvgi", "rvi", "short_run", "sinwma", "skew", "slope", "sma", "smi", "squeeze", "squeeze_pro", "ssf", "stc",
+            "stdev", "stoch", "stochrsi", "supertrend", "swma", "t3", "td_seq", "tema", "thermo", "tos_stdevall", "trima",
+            "trix", "true_range", "tsi", "tsignals", "ttm_trend", "ui", "uo", "variance", "vhf", "vidya", "vortex", "vp",
+            "vwap", "vwma", "wcp", "willr", "wma", "xsignals", "zlma", "zscore"
+        ]
+
+        functions = {name: getattr(price_data.ta, name) for name in function_names}
+        for name, func in tqdm(functions.items()):
+            print(f'{name} indicator')
+            try:
+                func(append=True)
+            except:
+                print(f'{name} indicator did not work')
+        #fill in nans
+        threshold = len(price_data) * 0.25
+        price_data = price_data.dropna(thresh=threshold, axis=1) #I just learned this
+        price_data = price_data.interpolate(method='linear', limit_direction='both')
+        self.data = price_data
+        #get features for non-close and close
+        self.features = self.data.columns.tolist()
+        self.non_close_features = self.features.copy()
+        self.non_close_features.remove('Close')
         self.n_features = len(self.non_close_features)
-        self.data = ta.add_all_ta_features(
-            price_data,
-            open="Open",
-            high="High",
-            close='Close',
-            low='Low',
-            volume='Volume',
-            fillna=True
-        )
+        # self.data = ta.add_all_ta_features(
+        #     price_data,
+        #     open="Open",
+        #     high="High",
+        #     close='Close',
+        #     low='Low',
+        #     volume='Volume',
+        #     fillna=True
+        # )
          
         #calc pivot points
         df_weekly = self.data.resample('M').mean()
@@ -344,7 +380,6 @@ class changePricePredictor:
         self.features = self.features + ['gdp','inflation','mortgage']
         self.non_close_features = self.non_close_features + ['gdp','inflation','mortgage']
 
-    
     def mw_data(self):
         """
         idea from https://www.youtube.com/watch?v=TF2Nx_ifmrU
@@ -441,10 +476,15 @@ class changePricePredictor:
         #FRED features
         self.fred_data()
         self.mw_data()
-        # Extract relevant features
+
+        #identify inf values
+        is_inf = self.data.isin([np.inf, -np.inf])
+        self.data[is_inf] = 0
+
+        #Extract relevant features
         data = self.data[self.features]
 
-        # Scale data
+        #Scale data
         # self.scaler2 = MinMaxScaler(feature_range=(0, 1))
         self.scaler2 = StandardScaler()
         self.pca = PCA(n_components=0.95)
@@ -460,7 +500,7 @@ class changePricePredictor:
         data_non_close = data[self.non_close_features]
         
         #feature engineer
-        data_non_close = feature_engineer(data_non_close)
+        # data_non_close = feature_engineer(data_non_close)
 
         #put sp typical price into df
         # data_non_close.index = pd.to_datetime(data_non_close.index)
@@ -506,10 +546,12 @@ class changePricePredictor:
             plt.figure()
             plt.figure(figsize=(8, 6))
             plt.bar(range(self.pca.n_components_), self.pca.explained_variance_ratio_)
-            plt.xlabel('Principal Component')
-            plt.ylabel('Explained Variance Ratio')
-            plt.title('Explained Variance Ratio of Principal Components')
-            plt.savefig('pca_components.png',dpi=400)
+            plt.xlabel('Principal Component',fontweight='bold')
+            plt.ylabel('Explained Variance Ratio',fontweight='bold')
+            plt.title(f'Explained Variance Ratio of Principal Components - {self.crypt_name}',fontweight='bold')
+            if not os.path.exists('pca_plots'):
+                os.mkdir('pca_plots')
+            plt.savefig(os.path.join(os.getcwd(),'pca_plots',f'{self.crypt_name}_pca_components.png'),dpi=400)
             plt.close()
             data = np.concatenate((data_close, self.data_non_close_save), axis=1)
 
@@ -610,7 +652,7 @@ class changePricePredictor:
             self.best_model = tuner.get_best_models(num_models=1)[0]
             #fit tuned model
             init_model_acc = float(10000000.0)
-            for i in range(15):
+            for i in tqdm(range(10)):
                 self.best_model.fit(X_train, y_train, epochs=200, 
                                     validation_data=(X_val, y_val),
                                     callbacks=[early_stopping,reduce_lr])
@@ -724,7 +766,8 @@ class changePricePredictor:
     def rolling_95_pct_ci(self, close_data):
         window_size = 14
         rolling_std = close_data.rolling(window=window_size).std()
-        z_score = 1.96  # z-score for a 95% confidence interval in a standard normal distribution
+        #z-score for a 95% confidence interval in a standard normal distribution
+        z_score = 1.96  
         ci_upper = close_data + (z_score * rolling_std)
         ci_lower = close_data - (z_score * rolling_std)
         return ci_upper, ci_lower
@@ -1014,8 +1057,8 @@ class changePricePredictor:
             self.check_output()
             self.plot_error()
         elif argv[2] == "correlate":
-            self.correlate_len_error()
             self.plot_pct_change_all_cryptos()
+            self.correlate_len_error()
         else:
             # Prepare data for training
             X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)

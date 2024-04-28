@@ -3,7 +3,7 @@
 Deep learning to forecast cryptocurrency prices 7 days in the future. Here are all the cryptos that have models:
 'BTC','ETH','ADA','MATIC','DOGE','SOL','DOT','SHIB','TRX','FIL','LINK','APE','MANA',"AVAX","ZEC","ICP","FLOW","EGLD","XTZ","LTC"
 
-Currently, there are 182 features to help with the forecasting of the close price
+Currently, there are 289 features (with pandas_ta, FRED data, and wikipedia data) to help with the forecasting of the close price
 ## Usage
 
 ```bash

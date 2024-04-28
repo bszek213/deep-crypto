@@ -28,8 +28,8 @@ import pandas_ta as ta
 
 """
 TODO: feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
-      change you you handle storing which features to keep and discard, be better than just a large list
       save mape for each crypto over time to get a cumulative error.
+      remove features that have 0 for 75% of the total array length
 """
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
     activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh', 'linear'])

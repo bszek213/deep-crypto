@@ -789,7 +789,7 @@ class changePricePredictor:
         future_close.index = pd.to_datetime(future_close.index)
 
         plt.rcParams['font.weight'] = 'bold'
-        plt.figure(figsize=(10,8))
+        plt.figure(figsize=(12,10))
         look_back_2 = look_back# + len(self.y_pred)
         plt.fill_between(ci_upper.index.to_numpy()[-look_back_2:], ci_upper.to_numpy()[-look_back_2:], 
                          ci_lower.to_numpy()[-look_back_2:], 
@@ -866,7 +866,7 @@ class changePricePredictor:
         #Plot data
         look_back = -self.n_outputs - 10
         plt.rcParams['font.weight'] = 'bold'
-        plt.figure(figsize=(12,8))
+        plt.figure(figsize=(14,10))
         plt.fill_between(ci_upper.index.to_numpy()[look_back:], ci_upper.to_numpy()[look_back:], 
                          ci_lower.to_numpy()[look_back:], 
                          color='lightblue', alpha=0.5, label='rolling 95% ci')
@@ -899,7 +899,7 @@ class changePricePredictor:
             # Extract sorted crypto names and errors
             crypto_names_sorted, errors_sorted = zip(*sorted_data)
             # Create a bar plot
-            plt.figure(figsize=(10, 6))
+            plt.figure(figsize=(12, 10))
             plt.bar(crypto_names_sorted, errors_sorted)
             plt.xlabel("Cryptos")
             plt.ylabel("MAPE")

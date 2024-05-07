@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import Normalizer, StandardScaler
 # import ta
 import yfinance as yf
 import matplotlib.pyplot as plt
@@ -487,9 +487,10 @@ class changePricePredictor:
         #Scale data
         # self.scaler2 = MinMaxScaler(feature_range=(0, 1))
         self.scaler2 = StandardScaler()
+        self.scaler3 = Normalizer(norm='l2')
         self.pca = PCA(n_components=0.95)
-        # self.scaler1 = MinMaxScaler(feature_range=(0, 1))
-        # self.scaler1 = StandardScaler()
+        
+        
         
         #Close price
         data_close = data['Close'].pct_change().fillna(0).to_numpy().reshape(-1, 1) #close price
@@ -540,6 +541,7 @@ class changePricePredictor:
             data = np.concatenate((data_close, data_non_close), axis=1)
         else:
             data_non_close = self.scaler2.fit_transform(data_non_close)
+            # data_non_close = self.scaler3.fit_transform(data_non_close)
             print(f'Number of features before PCA: {data_non_close.shape[1]}')
             self.data_non_close_save = self.pca.fit_transform(data_non_close)
             print(f'Number of features after PCA: {self.data_non_close_save.shape[1]}')
@@ -973,7 +975,7 @@ class changePricePredictor:
         print(f'PROPORTION CORRECT ON THOSE THAT THE MODEL PREDICTED WOULD BE POSITIVE: {(correct_classify / total_classify)*100}%')
         #plot
         g = regplot(data,x='MAPE',y='data_len',ci=None)
-        plt.text(0.9, 0.9, f'r^2 = {r_val**2:.2f}\np = {p_val:.2e}', transform=g.transAxes, ha='center')
+        plt.text(0.9, 0.9, f'r^2 = {r_val**2:.2f}\np = {p_val:.2e}', transform=g.transAxes, ha='center', fontsize=10)
         print(f"Correlation between MAPE vs. Length of the Price Data: {(r_val,p_val)}")
         print('========================================================')
         plt.tight_layout()
@@ -981,7 +983,7 @@ class changePricePredictor:
         plt.close()
         #sampen vs avg price
         g = regplot(data,x='MAPE',y='sampEn',ci=None)
-        plt.text(0.9, 0.9, f'r^2 = {r_val_se**2:.2f}\np = {p_val_se:.2e}', transform=g.transAxes, ha='center')
+        plt.text(0.9, 0.9, f'r^2 = {r_val_se**2:.2f}\np = {p_val_se:.2e}', transform=g.transAxes, ha='center', fontsize=10)
         print(f"Correlation between MAPE vs. Sample Entropy of the Price Data: {(r_val_se,p_val_se)}")
         print('========================================================')
         plt.tight_layout()
@@ -989,7 +991,7 @@ class changePricePredictor:
         plt.close()
         #power law vs avg price
         g = regplot(data,x='MAPE',y='fractal_dim',ci=None)
-        plt.text(0.9, 0.9, f'r^2 = {r_val_frac**2:.2f}\np = {p_val_frac:.2e}', transform=g.transAxes, ha='center')
+        plt.text(0.9, 0.9, f'r^2 = {r_val_frac**2:.2f}\np = {p_val_frac:.2e}', transform=g.transAxes, ha='center', fontsize=10)
         print(f"Correlation between MAPE vs. Fractal Dimension of the Price Data: {(r_val_frac,p_val_frac)}")
         print('========================================================')
         plt.tight_layout()

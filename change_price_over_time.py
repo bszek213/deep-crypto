@@ -200,11 +200,10 @@ def rainbow_plot(price,crypt):
         popt, _ = curve_fit(logFunc_simple, xdata, ydata, maxfev=5000)
         fittedYData = logFunc_simple(xdata, popt[0], popt[1])
 
-    # This is our fitted data, remember we will need to get the ex of it to graph it
-    
+    #This is our fitted data
     plt.style.use("dark_background")
     plt.figure(figsize=(15,8))
-    plt.semilogy(price.index.to_numpy(), price['average_price'].to_numpy())
+    plt.semilogy(price.index.to_numpy(), price['average_price'].to_numpy(), marker='*')
     plt.title(f'{crypt} Rainbow Chart')
     plt.xlabel('Time')
     plt.ylabel(f'{crypt} price in log scale')
@@ -217,7 +216,7 @@ def rainbow_plot(price,crypt):
     if not os.path.exists('figures_rainbow'):
         os.mkdir('figures_rainbow')
     save_path = os.path.join(os.getcwd(),'figures_rainbow',f'{crypt}_rainbow.png')
-    plt.savefig(save_path,dpi=375)
+    plt.savefig(save_path,dpi=400)
     plt.close()
     # except:
     #     print(f'curve_fit failed for {crypt}')

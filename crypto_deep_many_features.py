@@ -287,9 +287,22 @@ class changePricePredictor:
                 func(append=True)
             except:
                 print(f'{name} indicator did not work')
-        #fill in nans
-        threshold = len(price_data) * 0.25
-        price_data = price_data.dropna(thresh=threshold, axis=1) #I just learned this
+        #fill in nans and identify inf values
+        is_inf = price_data.isin([np.inf, -np.inf])
+        price_data[is_inf] = 0
+
+        #remove columns that have mostly nans
+        nan_percentages = (price_data.isna().sum() / len(price_data)) * 100
+        columns_with_95_percent_nans = nan_percentages[nan_percentages >= 25].index.tolist()
+        price_data = price_data.drop(columns=columns_with_95_percent_nans)
+
+        #check how many columns have 75% of their length is zeros
+        zero_proportions = (price_data == 0).sum() / len(price_data)
+        columns_to_drop = zero_proportions[zero_proportions > 0.65].index
+        price_data.drop(columns=columns_to_drop, inplace=True)
+
+        # threshold = len(price_data) * 0.25
+        # price_data = price_data.dropna(thresh=threshold, axis=1) #I just learned this
         price_data = price_data.interpolate(method='linear', limit_direction='both')
         self.data = price_data
         #get features for non-close and close
@@ -297,6 +310,7 @@ class changePricePredictor:
         self.non_close_features = self.features.copy()
         self.non_close_features.remove('Close')
         self.n_features = len(self.non_close_features)
+
         # self.data = ta.add_all_ta_features(
         #     price_data,
         #     open="Open",
@@ -476,10 +490,6 @@ class changePricePredictor:
         #FRED features
         self.fred_data()
         self.mw_data()
-
-        #identify inf values
-        is_inf = self.data.isin([np.inf, -np.inf])
-        self.data[is_inf] = 0
 
         #Extract relevant features
         data = self.data[self.features]

@@ -16,12 +16,12 @@ python3 change_price_over_time.py --name all --extension True #run all cryptos f
 python3 change_price_over_time.py --name BTC --extension True #run individual crypto
 python3 change_price_over_time.py --name ^DJI --extension False #run individual stock
 ```
-### Correlated Features
-![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png)
+### Forecasting percent change for all cryptocurrencies
+![](https://github.com/bszek213/deep-crypto/blob/dev/mean_with_std_plot.png)
 ### Forecasting error
 ![](https://github.com/bszek213/deep-crypto/blob/dev/error_plot.png)
-### Forecasting change predictions for all cryptos
-![](https://github.com/bszek213/deep-crypto/blob/dev/mean_with_std_plot.png)
+<!-- ### Correlated Features
+![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png) -->
 ### Forecasting examples of BTC
 ![](https://github.com/bszek213/deep-crypto/blob/dev/figures/BTC_future_price.png)
 ### Relationship between Data Length and MAPE
@@ -30,9 +30,9 @@ python3 change_price_over_time.py --name ^DJI --extension False #run individual 
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_sampEn.png)
 ### Relationship between Fractal Dimension and MAPE
 ![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_frac_dim.png)
-<!-- ### Month Analysis
+### Month Analysis
 Month
-![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_month.png) -->
+![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC-USD_change_month.png)
 <!-- Week
 ![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_week.png) -->
 ### Rainbow Log plot of BTC

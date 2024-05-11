@@ -1039,20 +1039,20 @@ class changePricePredictor:
 
         # Concatenate DataFrames along the columns axis
         result_df = pd.concat(dfs, axis=1).dropna()
+        row_mean = result_df.median(axis=1)
+        row_cum_sum = row_mean.cumsum()
+        row_std = row_cum_sum.rolling(5,min_periods=1).std()
+        # row_std = result_df.std(axis=1)
 
-        row_std = result_df.std(axis=1)
-        row_mean = result_df.mean(axis=1)
-
-        # Plot the mean with standard deviation as fill between
         plt.rcParams["axes.labelweight"] = "bold"
         plt.rcParams['font.size'] = 14
         plt.figure(figsize=(12, 10))
-        plt.plot(row_mean, label='Mean', color='blue', linewidth=3)
-        plt.fill_between(result_df.index, row_mean - row_std, row_mean + row_std, alpha=0.6, color='lightblue')
+        plt.plot(row_cum_sum, label='Mean', color='blue', linewidth=3)
+        plt.fill_between(result_df.index, row_cum_sum - row_std, row_cum_sum + row_std, alpha=0.6, color='lightblue')
         # plt.title('Mean with Standard Deviation as Fill Between')
         plt.xlabel('Date')
         plt.xticks(rotation=45)
-        plt.ylabel('Predicted Percentage Change For All Cryptos')
+        plt.ylabel('Predicted Cumulative Percentage Change For All Cryptos')
         plt.hlines(xmin=result_df.index[0], xmax=result_df.index[-1],y=0, linewidth=3, color='k')
         plt.grid(True)
         plt.tight_layout()

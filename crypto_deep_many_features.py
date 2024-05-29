@@ -126,9 +126,13 @@ def feature_engineer(data):
     for col in data.columns:
         if data[col].notna().all():
             #create running averages
-            data[f'{col}_short'] = data[col].rolling(window=7,min_periods=1).mean()
-            data[f'{col}_med'] = data[col].rolling(window=31,min_periods=1).mean()
-            data[f'{col}_long'] = data[col].rolling(window=90,min_periods=1).mean()
+            data[f'{col}_short'] = data[col].ewm(span=7, min_periods=1).mean().fillna(0)
+            data[f'{col}_med'] = data[col].ewm(span=31, min_periods=1).mean().fillna(0)
+            data[f'{col}_long'] = data[col].ewm(span=90, min_periods=1).mean().fillna(0)
+            data[f'{col}_sem'] = data[col].rolling(window=31, min_periods=1).sem().fillna(0)
+            data[f'{col}_short_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(span=7, min_periods=1).mean()
+            data[f'{col}_med_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(span=31, min_periods=1).mean()
+            data[f'{col}_long_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(span=90, min_periods=1).mean()
             # #skewness
             # data[f'{col}_short_skew'] = data[col].rolling(window=7,min_periods=1).skew()
             # data[f'{col}_med_skew'] = data[col].rolling(window=31,min_periods=1).skew()
@@ -446,6 +450,8 @@ class changePricePredictor:
             name = "Litecoin"
         elif self.crypt_name == "XRP":
             name = "Ripple (payment protocol)"
+        else:
+            name = "Nothing"
 
         if name != "Nothing":
             page = site.pages[name]
@@ -499,9 +505,7 @@ class changePricePredictor:
         self.scaler2 = StandardScaler()
         self.scaler3 = Normalizer(norm='l2')
         self.pca = PCA(n_components=0.95)
-        
-        
-        
+
         #Close price
         data_close = data['Close'].pct_change().fillna(0).to_numpy().reshape(-1, 1) #close price
         # plt.hist(data_close,bins=400)
@@ -511,7 +515,7 @@ class changePricePredictor:
         data_non_close = data[self.non_close_features]
         
         #feature engineer
-        # data_non_close = feature_engineer(data_non_close)
+        data_non_close = feature_engineer(data_non_close)
 
         #put sp typical price into df
         # data_non_close.index = pd.to_datetime(data_non_close.index)
@@ -566,7 +570,6 @@ class changePricePredictor:
             plt.savefig(os.path.join(os.getcwd(),'pca_plots',f'{self.crypt_name}_pca_components.png'),dpi=400)
             plt.close()
             data = np.concatenate((data_close, self.data_non_close_save), axis=1)
-
         # data_sorted = np.sort(data[:,0])
         # q1, q3 = np.percentile(data_sorted, [25, 75])
         # iqr_value = q3 - q1
@@ -1040,9 +1043,9 @@ class changePricePredictor:
         # Concatenate DataFrames along the columns axis
         result_df = pd.concat(dfs, axis=1).dropna()
         row_mean = result_df.median(axis=1)
+        row_std = result_df.std(axis=1)
         row_cum_sum = row_mean.cumsum()
-        row_std = row_cum_sum.rolling(5,min_periods=1).std()
-        # row_std = result_df.std(axis=1)
+        # row_std = row_cum_sum.rolling(5,min_periods=1).std()
 
         plt.rcParams["axes.labelweight"] = "bold"
         plt.rcParams['font.size'] = 14

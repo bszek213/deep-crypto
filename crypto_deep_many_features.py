@@ -130,9 +130,9 @@ def feature_engineer(data):
             data[f'{col}_med'] = data[col].ewm(span=31, min_periods=1).mean().fillna(0)
             data[f'{col}_long'] = data[col].ewm(span=90, min_periods=1).mean().fillna(0)
             data[f'{col}_sem'] = data[col].rolling(window=31, min_periods=1).sem().fillna(0)
-            data[f'{col}_short_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(span=7, min_periods=1).mean()
-            data[f'{col}_med_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(span=31, min_periods=1).mean()
-            data[f'{col}_long_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(span=90, min_periods=1).mean()
+            data[f'{col}_short_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(window=7, min_periods=1).mean()
+            data[f'{col}_med_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(window=31, min_periods=1).mean()
+            data[f'{col}_long_diff'] = data[col].pct_change().fillna(data[col].mean()).rolling(window=90, min_periods=1).mean()
             # #skewness
             # data[f'{col}_short_skew'] = data[col].rolling(window=7,min_periods=1).skew()
             # data[f'{col}_med_skew'] = data[col].rolling(window=31,min_periods=1).skew()

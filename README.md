@@ -17,27 +17,27 @@ python3 change_price_over_time.py --name BTC --extension True #run individual cr
 python3 change_price_over_time.py --name ^DJI --extension False #run individual stock
 ```
 ### Forecasting percent change for all cryptocurrencies
-![](https://github.com/bszek213/deep-crypto/blob/dev/mean_with_std_plot.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/mean_with_std_plot.png)
 ### Forecasting error
-![](https://github.com/bszek213/deep-crypto/blob/dev/error_plot.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/error_plot.png)
 <!-- ### Correlated Features
-![](https://github.com/bszek213/deep-crypto/blob/dev/correlation_heatmap.png) -->
+![](https://github.com/bszek213/deep-crypto/blob/main/correlation_heatmap.png) -->
 ### Forecasting examples of BTC
-![](https://github.com/bszek213/deep-crypto/blob/dev/figures/BTC_future_price.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/figures/BTC_future_price.png)
 ### Relationship between Data Length and MAPE
-![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_data_len.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/correl_mape_data_len.png)
 ### Relationship between Sample Entropy and MAPE
-![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_sampEn.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/correl_mape_vs_sampEn.png)
 ### Relationship between Fractal Dimension and MAPE
-![](https://github.com/bszek213/deep-crypto/blob/dev/correl_mape_vs_frac_dim.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/correl_mape_vs_frac_dim.png)
 ### Month Analysis
 Month
-![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC-USD_change_month.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/price_change/BTC-USD_change_month.png)
 <!-- Week
-![](https://github.com/bszek213/deep-crypto/blob/dev/price_change/BTC_change_week.png) -->
+![](https://github.com/bszek213/deep-crypto/blob/main/price_change/BTC_change_week.png) -->
 ### Rainbow Log plot of BTC
-![](https://github.com/bszek213/deep-crypto/blob/dev/figures_rainbow/BTC-USD_rainbow.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/figures_rainbow/BTC-USD_rainbow.png)
 ### Shannon Entropy on the log returns on cryptos and stock market
-![](https://github.com/bszek213/deep-crypto/blob/dev/Entropy_cryptos_stock_market.png)
+![](https://github.com/bszek213/deep-crypto/blob/main/Entropy_cryptos_stock_market.png)
 ### Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.

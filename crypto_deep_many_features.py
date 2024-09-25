@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from sklearn.preprocessing import Normalizer, StandardScaler
-# import ta
 import yfinance as yf
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
@@ -21,59 +20,67 @@ from fredapi import Fred
 import mwclient
 from transformers import pipeline
 from time import strftime
-# from tensorflow.keras.models import Model
 from sklearn.decomposition import PCA
 from sampen import sampen2
 import pandas_ta as ta
+import json
+"""
+TODO: feature engineer - add interest rates
+Potential Correlating Economic Indicators:
+Monetary Policy Indicators
+Federal Reserve Total Assets: Changes in the Fed's balance sheet may impact risk appetite and cryptocurrency demand.
+Market Sentiment
+S&P 500 Index: As a measure of overall market sentiment, it may correlate with crypto prices during certain periods.
+Currency Strength
+U.S. Dollar Index: Cryptocurrency prices often move inversely to the strength of the U.S. dollar.
+Inflation Metrics
+Consumer Price Index (CPI): Inflation concerns can drive interest in cryptocurrencies as potential hedges.
+Economic Uncertainty
+VIX (Volatility Index): Periods of high market volatility may correlate with cryptocurrency price movements.
+"""
 
-"""
-TODO: feature engineer - add in skew, kurtosis running at different intervals - 7, 14, 30 of the close price
-      save mape for each crypto over time to get a cumulative error.
-      remove features that have 0 for 75% of the total array length
-"""
 def create_lstm_model(hp, n_steps, n_features, n_outputs):
-    activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh', 'linear'])
+    # Extend activation choices to include swish and other functions
+    activation_choice = hp.Choice('activation', values=['relu', 'leaky_relu', 'tanh', 'linear', 'swish', 'elu', 'selu'])
+    dense_activation_choice = hp.Choice('dense_activation', values=['leaky_relu', 'tanh', 'swish'])
+    
     regularizer_strength_l1 = hp.Float('regularizer_strength_l1', min_value=1e-6, max_value=1e-2, sampling='log')
     regularizer_strength_l2 = hp.Float('regularizer_strength_l2', min_value=1e-6, max_value=1e-2, sampling='log')
+    dropout_rate = hp.Float('dropout_rate', min_value=0.0, max_value=0.5, step=0.1)
+    recurrent_dropout_rate = hp.Float('recurrent_dropout_rate', min_value=0.0, max_value=0.5, step=0.1)
+    learning_rate = hp.Float('adam_learning_rate', min_value=0.0001, max_value=0.01, sampling='log')
+    clipnorm = hp.Float('clipnorm', min_value=0.1, max_value=1.0, step=0.1)
+    # momentum = hp.Float('momentum', min_value=0.0, max_value=0.9, step=0.1)
     
     regularizer_l1 = tf.keras.regularizers.l1(regularizer_strength_l1)
     regularizer_l2 = tf.keras.regularizers.l2(regularizer_strength_l2)
     
-    #Batch Norm layer
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(hp.Int('units', min_value=1, max_value=20, step=1),
-                                                           activation=activation_choice, return_sequences=False,
-                                                           kernel_regularizer=regularizer_l2, recurrent_regularizer=regularizer_l1,
-                                                           input_shape=(n_steps, n_features))),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.Dense(n_outputs, 
-                              hp.Choice('dense_activation', values=['leaky_relu', 'tanh'])) #'linear'
-    ])
-
-    #Try Attention layer
-    # inputs = tf.keras.layers.Input(shape=(n_steps, n_features))
-    # lstm_out = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(units=hp.Int('units', min_value=1, max_value=20, step=1),
-    #                             activation=activation_choice,
-    #                             return_sequences=True,
-    #                             kernel_regularizer=regularizer_l2,
-    #                             recurrent_regularizer=regularizer_l1))(inputs)
-    # attention_out = tf.keras.layers.Attention()([lstm_out, lstm_out])
-    # outputs = tf.keras.layers.Dense(n_outputs, activation=hp.Choice('dense_activation', values=['linear','leaky_relu', 'tanh']))(attention_out)
-    # model = Model(inputs=inputs, outputs=outputs)
-
-    optimizer_choice = hp.Choice('optimizer', values=['adam', 'rmsprop']) #, 'sgd'
-    if optimizer_choice == 'adam':
-        optimizer = tf.keras.optimizers.Adam(learning_rate=hp.Float('adam_learning_rate', min_value=0.0001, max_value=0.01, sampling='log'))
-    else:# optimizer_choice == 'rmsprop':
-        optimizer = tf.keras.optimizers.RMSprop(learning_rate=hp.Float('rmsprop_learning_rate', min_value=0.0001, max_value=0.01, sampling='log'))
-    # else:
-    #     optimizer = tf.keras.optimizers.SGD(learning_rate=hp.Float('sgd_learning_rate', min_value=0.0001, max_value=0.001, sampling='log'))
+    model = tf.keras.models.Sequential()
     
-    model.compile(optimizer=optimizer,
-                  loss='mean_absolute_error', #mean_squared_error
-                  metrics=['mean_absolute_error'])
-
+    # LSTM layer
+    model.add(tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(
+        units=hp.Int('units', min_value=1, max_value=100, step=10),
+        activation=activation_choice, return_sequences=False,
+        dropout=dropout_rate, recurrent_dropout=recurrent_dropout_rate,
+        kernel_regularizer=regularizer_l2, recurrent_regularizer=regularizer_l1,
+        input_shape=(n_steps, n_features)
+    )))
+    
+    model.add(tf.keras.layers.BatchNormalization())
+    
+    #output layer with tunable activation
+    model.add(tf.keras.layers.Dense(n_outputs, activation=dense_activation_choice))
+    
+    #optimizer with hyperparameters that are tuned
+    optimizer = tf.keras.optimizers.Adam(
+        learning_rate=learning_rate,
+        clipnorm=clipnorm
+    )
+    
+    model.compile(optimizer=optimizer, loss='mean_absolute_error', metrics=['mean_absolute_error'])
+    
     return model
+
 
 def load_data_from_yaml(filename):
     try:
@@ -126,9 +133,13 @@ def feature_engineer(data):
     for col in data.columns:
         if data[col].notna().all():
             #create running averages
-            data[f'{col}_short'] = data[col].rolling(window=7,min_periods=1).mean()
-            data[f'{col}_med'] = data[col].rolling(window=31,min_periods=1).mean()
-            data[f'{col}_long'] = data[col].rolling(window=90,min_periods=1).mean()
+            data[f'{col}_short'] = data[col].ewm(span=7, min_periods=1).mean().fillna(0)
+            data[f'{col}_med'] = data[col].ewm(span=31, min_periods=1).mean().fillna(0)
+            data[f'{col}_long'] = data[col].ewm(span=90, min_periods=1).mean().fillna(0)
+            data[f'{col}_sem'] = data[col].rolling(window=31, min_periods=1).sem().fillna(0)
+            data[f'{col}_short_diff'] = data[col].pct_change().fillna(data[col].mean()).ewm(span=7, min_periods=1).mean()
+            data[f'{col}_med_diff'] = data[col].pct_change().fillna(data[col].mean()).ewm(span=31, min_periods=1).mean()
+            data[f'{col}_long_diff'] = data[col].pct_change().fillna(data[col].mean()).ewm(span=90, min_periods=1).mean()
             # #skewness
             # data[f'{col}_short_skew'] = data[col].rolling(window=7,min_periods=1).skew()
             # data[f'{col}_med_skew'] = data[col].rolling(window=31,min_periods=1).skew()
@@ -352,6 +363,7 @@ class changePricePredictor:
         with open('fred_api.txt', 'r') as f:
             fred_api = f.read()
         fred = Fred(api_key=fred_api)
+
         #GDP 
         gdp_df = fred.get_series_as_of_date('GDP', str(datetime.now().date()))
         gdp_df['date'] = pd.to_datetime(gdp_df['date'])
@@ -387,12 +399,25 @@ class changePricePredictor:
             np.linspace(0, 1, num=len(morg_df['value'])),  # Current indices
             morg_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
         )
+
+        #interest rates (Federal Funds Effective Rate)
+        interest_df = fred.get_series_as_of_date('FEDFUNDS', str(datetime.now().date()))  
+        interest_df['date'] = pd.to_datetime(interest_df['date'])
+        closest_date = min(interest_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        desired_index = interest_df[interest_df['date'] == closest_date].index[0]
+        interest_df = interest_df[['date','value']].iloc[desired_index:]
+        interpolated_interest_values = np.interp(
+            np.linspace(0, 1, num=len(self.data)), 
+            np.linspace(0, 1, num=len(interest_df['value'])),  # Current indices
+            interest_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        )
         #add these to data and add feature names
         self.data['gdp'] = interpolated_gdp_values
         self.data['inflation'] = interpolated_inflation_values
         self.data['mortgage'] = interpolated_morg_values
-        self.features = self.features + ['gdp','inflation','mortgage']
-        self.non_close_features = self.non_close_features + ['gdp','inflation','mortgage']
+        self.data['interest_rate'] = interpolated_interest_values
+        self.features = self.features + ['gdp','inflation','mortgage','interest_rate']
+        self.non_close_features = self.non_close_features + ['gdp','inflation','mortgage','interest_rate']
 
     def mw_data(self):
         """
@@ -446,6 +471,8 @@ class changePricePredictor:
             name = "Litecoin"
         elif self.crypt_name == "XRP":
             name = "Ripple (payment protocol)"
+        else:
+            name = "Nothing"
 
         if name != "Nothing":
             page = site.pages[name]
@@ -489,7 +516,7 @@ class changePricePredictor:
     def prepare_data(self, data):
         #FRED features
         self.fred_data()
-        self.mw_data()
+        # self.mw_data()
 
         #Extract relevant features
         data = self.data[self.features]
@@ -499,9 +526,7 @@ class changePricePredictor:
         self.scaler2 = StandardScaler()
         self.scaler3 = Normalizer(norm='l2')
         self.pca = PCA(n_components=0.95)
-        
-        
-        
+
         #Close price
         data_close = data['Close'].pct_change().fillna(0).to_numpy().reshape(-1, 1) #close price
         # plt.hist(data_close,bins=400)
@@ -511,21 +536,7 @@ class changePricePredictor:
         data_non_close = data[self.non_close_features]
         
         #feature engineer
-        # data_non_close = feature_engineer(data_non_close)
-
-        #put sp typical price into df
-        # data_non_close.index = pd.to_datetime(data_non_close.index)
-        # data_non_close['Date'] = data_non_close.index.date
-        # data_non_close = pd.merge(data_non_close, self.typical_price_SP, left_on='Date', right_index=True, how='left')
-        # data_non_close.drop('Date', axis=1, inplace=True)
-        # #sp no weekend data
-        # data_non_close['typical_price_SP'].fillna(method='bfill', inplace=True)
-        # #Same thing for usdeuro
-        # data_non_close['Date'] = data_non_close.index.date
-        # data_non_close = pd.merge(data_non_close, self.typical_price_usd, left_on='Date', right_index=True, how='left')
-        # data_non_close.drop('Date', axis=1, inplace=True)
-        # #eurousd no weekend data
-        # data_non_close['typical_price_usd_euro'].fillna(method='bfill', inplace=True)
+        data_non_close = feature_engineer(data_non_close)
 
         #Remove correlated features
         if self.which_analysis == 'corr':
@@ -566,7 +577,6 @@ class changePricePredictor:
             plt.savefig(os.path.join(os.getcwd(),'pca_plots',f'{self.crypt_name}_pca_components.png'),dpi=400)
             plt.close()
             data = np.concatenate((data_close, self.data_non_close_save), axis=1)
-
         # data_sorted = np.sort(data[:,0])
         # q1, q3 = np.percentile(data_sorted, [25, 75])
         # iqr_value = q3 - q1
@@ -648,7 +658,7 @@ class changePricePredictor:
             tuner = RandomSearch(
                 lambda hp: create_lstm_model(hp, self.n_steps, len(self.features), self.n_outputs),
                 objective='val_mean_absolute_error', #val_loss
-                max_trials=30,
+                max_trials=25,
                 directory=f'{self.crypt_name}_lstm_hp',
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True
@@ -850,7 +860,6 @@ class changePricePredictor:
     def check_output(self):
         # #calculate 95% CI rolling
         # self.rolling_95_pct_ci()
-
         with open('crypto_pre_error.yaml', 'r') as file:
             data = yaml.safe_load(file)
         time_output = [data[self.crypt_name]['time'][0] + timedelta(days=i) for i in range(1, len(data[self.crypt_name]['price']))]
@@ -858,11 +867,31 @@ class changePricePredictor:
         #Remove everything except year month and day
         time_output = [date.date() for date in time_output]
         self.data.index = pd.to_datetime(self.data.index.date)
+
         #find matching indices and get error
         matching_indices = self.data.index[self.data.index.to_series().dt.floor('D').isin(time_output)]
         matching_close_prices = self.data['Close'][matching_indices]
         mape_error = mean_absolute_percentage_error(matching_close_prices.values,
                                                     data[self.crypt_name]['price'][0:len(matching_close_prices)])
+        file_path = 'cumulative_mape_errors.json'
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                error_dict = json.load(f)
+        else:
+            error_dict = {}
+        if self.crypt_name in error_dict:
+            #difference between new and old errors
+            old_mape_error = error_dict[self.crypt_name]
+            error_difference = abs(mape_error - old_mape_error)
+            print(f"Difference between old and new MAPE: {error_difference}")
+        else:
+            print(f"{self.crypt_name} does not exist in the file.")
+        
+        #update the dictionary with the new MAPE error
+        error_dict[self.crypt_name] = mape_error
+        with open(file_path, 'w') as f:
+            json.dump(error_dict, f, indent=4)
+
         #write data to file
         if os.path.exists("crypto_mape.yaml"):
             with open("crypto_mape.yaml", 'r') as file:
@@ -1015,7 +1044,9 @@ class changePricePredictor:
         # Cryptocurrency keys
         available_crypt = list(data.keys())
         list_crypt = ['BTC', 'ETH', 'ADA', 'MATIC', 'DOGE', 'SOL', 'DOT', 'SHIB', 'TRX', 'FIL', 'LINK',
-                    'APE', 'MANA', "AVAX", "ZEC", "ICP", "FLOW", "EGLD", "XTZ", "LTC", "XRP"]
+                    'APE', 'MANA', "AVAX", "ZEC", "ICP", "FLOW", "EGLD", "XTZ", "LTC", "XRP", "BCH","UNI",
+                    'LTC',"ETC","ATOM","AAVE","HNT","ALGO","AXS"]
+
         list_crypt = [crypt for crypt in list_crypt if crypt in available_crypt]
 
         # Create a dictionary to store average percentage change and standard deviation for each cryptocurrency
@@ -1040,9 +1071,9 @@ class changePricePredictor:
         # Concatenate DataFrames along the columns axis
         result_df = pd.concat(dfs, axis=1).dropna()
         row_mean = result_df.median(axis=1)
+        row_std = result_df.std(axis=1)
         row_cum_sum = row_mean.cumsum()
-        row_std = row_cum_sum.rolling(5,min_periods=1).std()
-        # row_std = result_df.std(axis=1)
+        # row_std = row_cum_sum.rolling(5,min_periods=1).std()
 
         plt.rcParams["axes.labelweight"] = "bold"
         plt.rcParams['font.size'] = 14
@@ -1084,27 +1115,35 @@ class changePricePredictor:
 
 def main():
     if argv[1] == 'all':
-        list_crypt = ['BTC','ETH','ADA','MATIC','DOGE',
-                    'SOL','DOT','SHIB','TRX','FIL','LINK',
-                    'APE','MANA',"AVAX","ZEC","ICP","FLOW",
-                    "EGLD","XTZ","LTC","XRP"] # "SP",
+        list_crypt = ['BTC', 'ETH', 'ADA', 'MATIC', 'DOGE', 'SOL', 'DOT', 'SHIB', 'TRX', 'FIL', 'LINK',
+                    'APE', 'MANA', "AVAX", "ZEC", "ICP", "FLOW", "EGLD", "XTZ", "LTC", "XRP", "BCH","UNI",
+                    'LTC',"ETC","ATOM","AAVE","HNT","ALGO","AXS"] # "SP",
+
         for name in tqdm(sorted(list_crypt)):
             try:
                 changePricePredictor(crypt=name,
                                     n_features=10, 
                                     n_steps=128, 
-                                    n_outputs=21, 
+                                    n_outputs=7, 
                                     n_epochs=500, 
                                     batch_size=256).run_analysis()
                 if argv[2] == "correlate":
                     break
             except Exception as e:
                 print(Fore.RED,Style.BRIGHT,f'{name} did not complete: {e}',Style.RESET_ALL)
+
+        #sort the cumulative erros and then resave
+        if os.path.exists('cumulative_mape_errors.json'):
+            with open('cumulative_mape_errors.json', 'r') as f:
+                error_dict = json.load(f)
+            sorted_dict = dict(sorted(error_dict.items(), key=lambda item: item[1]))
+            with open('cumulative_mape_errors.json', 'w') as f:
+                json.dump(sorted_dict, f, indent=4)
     else:
         changePricePredictor(crypt=argv[1],
                             n_features=10, 
                             n_steps=128, 
-                            n_outputs=21, 
+                            n_outputs=7, 
                             n_epochs=500, 
                             batch_size=256).run_analysis()
 if __name__ == "__main__":

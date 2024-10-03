@@ -20,7 +20,7 @@ from fredapi import Fred
 import mwclient
 from transformers import pipeline
 from time import strftime
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, KernelPCA
 from sampen import sampen2
 import pandas_ta as ta
 import json
@@ -190,7 +190,7 @@ class changePricePredictor:
         self.n_outputs = n_outputs
         self.n_epochs = n_epochs
         self.batch_size = batch_size
-
+        self.direction_probas = {}
         #use S&P price for any explanatory power of what the crypto will do
         # temp = yf.Ticker('^GSPC')
         # sp_price = temp.history(period = 'max', interval="1d")
@@ -363,61 +363,77 @@ class changePricePredictor:
         with open('fred_api.txt', 'r') as f:
             fred_api = f.read()
         fred = Fred(api_key=fred_api)
-
-        #GDP 
-        gdp_df = fred.get_series_as_of_date('GDP', str(datetime.now().date()))
-        gdp_df['date'] = pd.to_datetime(gdp_df['date'])
-        closest_date = min(gdp_df['date'], key=lambda x: abs(x - self.data.index[0]))
-        desired_index = gdp_df[gdp_df['date'] == closest_date].index[0]
-        gdp_df = gdp_df[['date','value']].iloc[desired_index:]
-        interpolated_gdp_values = np.interp(
-            np.linspace(0, 1, num=len(self.data)),
-            np.linspace(0, 1, num=len(gdp_df['value'])),  # Current indices
-            gdp_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
-        )   
+        # #GDP 
+        # gdp_df = fred.get_series_as_of_date('GDP', str(datetime.now().date()))
+        # gdp_df['date'] = pd.to_datetime(gdp_df['date'])
+        # closest_date = min(gdp_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        # desired_index = gdp_df[gdp_df['date'] == closest_date].index[0]
+        # gdp_df = gdp_df[['date','value']].iloc[desired_index:]
+        # interpolated_gdp_values = np.interp(
+        #     np.linspace(0, 1, num=len(self.data)),
+        #     np.linspace(0, 1, num=len(gdp_df['value'])),  # Current indices
+        #     gdp_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        # )   
         
-        #inflation
-        inflation_df = fred.get_series_as_of_date('T10YIEM', str(datetime.now().date()))  
-        inflation_df['date'] = pd.to_datetime(inflation_df['date'])
-        closest_date = min(inflation_df['date'], key=lambda x: abs(x - self.data.index[0]))
-        desired_index = inflation_df[inflation_df['date'] == closest_date].index[0]
-        inflation_df = inflation_df[['date','value']].iloc[desired_index:]
-        interpolated_inflation_values = np.interp(
-            np.linspace(0, 1, num=len(self.data)), 
-            np.linspace(0, 1, num=len(inflation_df['value'])),  # Current indices
-            inflation_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
-        )   
+        # #inflation
+        # inflation_df = fred.get_series_as_of_date('T10YIEM', str(datetime.now().date()))  
+        # inflation_df['date'] = pd.to_datetime(inflation_df['date'])
+        # closest_date = min(inflation_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        # desired_index = inflation_df[inflation_df['date'] == closest_date].index[0]
+        # inflation_df = inflation_df[['date','value']].iloc[desired_index:]
+        # interpolated_inflation_values = np.interp(
+        #     np.linspace(0, 1, num=len(self.data)), 
+        #     np.linspace(0, 1, num=len(inflation_df['value'])),  # Current indices
+        #     inflation_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        # )   
 
-        #mortgage
-        morg_df = fred.get_series_as_of_date('MORTGAGE30US', str(datetime.now().date()))  
-        morg_df['date'] = pd.to_datetime(morg_df['date'])
-        closest_date = min(morg_df['date'], key=lambda x: abs(x - self.data.index[0]))
-        desired_index = morg_df[morg_df['date'] == closest_date].index[0]
-        morg_df = morg_df[['date','value']].iloc[desired_index:]
-        interpolated_morg_values = np.interp(
-            np.linspace(0, 1, num=len(self.data)), 
-            np.linspace(0, 1, num=len(morg_df['value'])),  # Current indices
-            morg_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
-        )
+        # #mortgage
+        # morg_df = fred.get_series_as_of_date('MORTGAGE30US', str(datetime.now().date()))  
+        # morg_df['date'] = pd.to_datetime(morg_df['date'])
+        # closest_date = min(morg_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        # desired_index = morg_df[morg_df['date'] == closest_date].index[0]
+        # morg_df = morg_df[['date','value']].iloc[desired_index:]
+        # interpolated_morg_values = np.interp(
+        #     np.linspace(0, 1, num=len(self.data)), 
+        #     np.linspace(0, 1, num=len(morg_df['value'])),  # Current indices
+        #     morg_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        # )
 
-        #interest rates (Federal Funds Effective Rate)
-        interest_df = fred.get_series_as_of_date('FEDFUNDS', str(datetime.now().date()))  
-        interest_df['date'] = pd.to_datetime(interest_df['date'])
-        closest_date = min(interest_df['date'], key=lambda x: abs(x - self.data.index[0]))
-        desired_index = interest_df[interest_df['date'] == closest_date].index[0]
-        interest_df = interest_df[['date','value']].iloc[desired_index:]
-        interpolated_interest_values = np.interp(
-            np.linspace(0, 1, num=len(self.data)), 
-            np.linspace(0, 1, num=len(interest_df['value'])),  # Current indices
-            interest_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
-        )
-        #add these to data and add feature names
-        self.data['gdp'] = interpolated_gdp_values
-        self.data['inflation'] = interpolated_inflation_values
-        self.data['mortgage'] = interpolated_morg_values
-        self.data['interest_rate'] = interpolated_interest_values
-        self.features = self.features + ['gdp','inflation','mortgage','interest_rate']
-        self.non_close_features = self.non_close_features + ['gdp','inflation','mortgage','interest_rate']
+        # #interest rates (Federal Funds Effective Rate)
+        # interest_df = fred.get_series_as_of_date('FEDFUNDS', str(datetime.now().date()))  
+        # interest_df['date'] = pd.to_datetime(interest_df['date'])
+        # closest_date = min(interest_df['date'], key=lambda x: abs(x - self.data.index[0]))
+        # desired_index = interest_df[interest_df['date'] == closest_date].index[0]
+        # interest_df = interest_df[['date','value']].iloc[desired_index:]
+        # interpolated_interest_values = np.interp(
+        #     np.linspace(0, 1, num=len(self.data)), 
+        #     np.linspace(0, 1, num=len(interest_df['value'])),  # Current indices
+        #     interest_df['value'].fillna(method='ffill').fillna(method='bfill')  # Fill missing values and perform interpolation
+        # )
+        # #add these to data and add feature names
+        # self.data['gdp'] = interpolated_gdp_values
+        # self.data['inflation'] = interpolated_inflation_values
+        # self.data['mortgage'] = interpolated_morg_values
+        # self.data['interest_rate'] = interpolated_interest_values
+        # self.features = self.features + ['gdp','inflation','mortgage','interest_rate']
+        # self.non_close_features = self.non_close_features + ['gdp','inflation','mortgage','interest_rate']
+        metrics = ['GDP', 'T10YIEM', 'MORTGAGE30US', 'FEDFUNDS', 'M2SL', 
+                   'CPCAUS', 'DTWEXBGS', 'UNRATE', 'SP500', 'VIXCLS', 
+                   'GOLDAMGBD228NLBM', 'INDPRO', 'RSAFS', 'T10Y2Y']
+        start_date = self.data.index[0].strftime('%Y-%m-%d')
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        for metric in metrics:
+            try:
+                df = fred.get_series(metric, observation_start=start_date, observation_end=end_date)
+                df = df.reindex(self.data.index)
+                interpolated_values = df.interpolate(method='time').ffill().bfill()
+
+                self.data[metric.lower()] = interpolated_values
+                self.features.append(metric.lower())
+                self.non_close_features.append(metric.lower())
+            except Exception as e:
+                print(f"Error fetching {metric}: {str(e)}")
+                continue
 
     def mw_data(self):
         """
@@ -525,8 +541,7 @@ class changePricePredictor:
         # self.scaler2 = MinMaxScaler(feature_range=(0, 1))
         self.scaler2 = StandardScaler()
         self.scaler3 = Normalizer(norm='l2')
-        self.pca = PCA(n_components=0.95)
-
+    
         #Close price
         data_close = data['Close'].pct_change().fillna(0).to_numpy().reshape(-1, 1) #close price
         # plt.hist(data_close,bins=400)
@@ -564,18 +579,20 @@ class changePricePredictor:
             data_non_close = self.scaler2.fit_transform(data_non_close)
             # data_non_close = self.scaler3.fit_transform(data_non_close)
             print(f'Number of features before PCA: {data_non_close.shape[1]}')
+            pca_temp = PCA(n_components=0.95).fit(data_non_close)
+            self.pca = KernelPCA(n_components=int(pca_temp.n_components_), kernel='rbf')
             self.data_non_close_save = self.pca.fit_transform(data_non_close)
             print(f'Number of features after PCA: {self.data_non_close_save.shape[1]}')
-            plt.figure()
-            plt.figure(figsize=(8, 6))
-            plt.bar(range(self.pca.n_components_), self.pca.explained_variance_ratio_)
-            plt.xlabel('Principal Component',fontweight='bold')
-            plt.ylabel('Explained Variance Ratio',fontweight='bold')
-            plt.title(f'Explained Variance Ratio of Principal Components - {self.crypt_name}',fontweight='bold')
-            if not os.path.exists('pca_plots'):
-                os.mkdir('pca_plots')
-            plt.savefig(os.path.join(os.getcwd(),'pca_plots',f'{self.crypt_name}_pca_components.png'),dpi=400)
-            plt.close()
+            # plt.figure()
+            # plt.figure(figsize=(8, 6))
+            # plt.bar(range(self.pca.n_components_), self.pca.explained_variance_ratio_)
+            # plt.xlabel('Principal Component',fontweight='bold')
+            # plt.ylabel('Explained Variance Ratio',fontweight='bold')
+            # plt.title(f'Explained Variance Ratio of Principal Components - {self.crypt_name}',fontweight='bold')
+            # if not os.path.exists('pca_plots'):
+            #     os.mkdir('pca_plots')
+            # plt.savefig(os.path.join(os.getcwd(),'pca_plots',f'{self.crypt_name}_pca_components.png'),dpi=400)
+            # plt.close()
             data = np.concatenate((data_close, self.data_non_close_save), axis=1)
         # data_sorted = np.sort(data[:,0])
         # q1, q3 = np.percentile(data_sorted, [25, 75])
@@ -871,8 +888,27 @@ class changePricePredictor:
         #find matching indices and get error
         matching_indices = self.data.index[self.data.index.to_series().dt.floor('D').isin(time_output)]
         matching_close_prices = self.data['Close'][matching_indices]
+        actual_close_prices = data[self.crypt_name]['price'][0:len(matching_close_prices)]
         mape_error = mean_absolute_percentage_error(matching_close_prices.values,
-                                                    data[self.crypt_name]['price'][0:len(matching_close_prices)])
+                                                    actual_close_prices)
+        #check direction probabilities
+        if ((matching_close_prices.values[-1] - matching_close_prices.values[0] < 0) and
+            (actual_close_prices[-1] - actual_close_prices[0] < 0)):
+            self.direction_probas[self.crypt_name] = 1
+        elif ((matching_close_prices.values[-1] - matching_close_prices.values[0] > 0) and
+            (actual_close_prices[-1] - actual_close_prices[0] > 0)):
+            self.direction_probas[self.crypt_name] = 1
+        else:
+            self.direction_probas[self.crypt_name] = 0
+
+        yaml_file = 'direction_probas.yaml'
+        if os.path.exists(yaml_file):
+            with open(yaml_file, 'r') as file:
+                existing_data = yaml.safe_load(file) or {}
+                self.direction_probas.update(existing_data)
+        with open(yaml_file, 'w') as file:
+            yaml.dump(self.direction_probas, file)
+
         file_path = 'cumulative_mape_errors.json'
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
@@ -882,13 +918,13 @@ class changePricePredictor:
         if self.crypt_name in error_dict:
             #difference between new and old errors
             old_mape_error = error_dict[self.crypt_name]
-            error_difference = abs(mape_error - old_mape_error)
-            print(f"Difference between old and new MAPE: {error_difference}")
+            error_new = old_mape_error + abs(mape_error - old_mape_error)
+            print(f"Difference between old and new MAPE: {error_new}")
         else:
             print(f"{self.crypt_name} does not exist in the file.")
         
         #update the dictionary with the new MAPE error
-        error_dict[self.crypt_name] = mape_error
+        error_dict[self.crypt_name] = error_new
         with open(file_path, 'w') as f:
             json.dump(error_dict, f, indent=4)
 

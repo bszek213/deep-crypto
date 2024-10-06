@@ -24,6 +24,7 @@ from sklearn.decomposition import PCA, KernelPCA
 from sampen import sampen2
 import pandas_ta as ta
 import json
+from umap import UMAP
 """
 TODO: feature engineer - add interest rates
 Potential Correlating Economic Indicators:
@@ -577,12 +578,31 @@ class changePricePredictor:
             data = np.concatenate((data_close, data_non_close), axis=1)
         else:
             data_non_close = self.scaler2.fit_transform(data_non_close)
-            # data_non_close = self.scaler3.fit_transform(data_non_close)
-            print(f'Number of features before PCA: {data_non_close.shape[1]}')
-            pca_temp = PCA(n_components=0.95).fit(data_non_close)
-            self.pca = KernelPCA(n_components=int(pca_temp.n_components_), kernel='rbf')
-            self.data_non_close_save = self.pca.fit_transform(data_non_close)
-            print(f'Number of features after PCA: {self.data_non_close_save.shape[1]}')
+            
+            print(f'Number of features before Ensemble dim reduction: {data_non_close.shape[1]}')
+            #First ensemble metric
+            self.pca_ens = PCA(n_components=0.95)
+            X_pca = self.pca_ens.fit_transform(data_non_close)
+
+            #Second ensemble metric
+            self.kpca = KernelPCA(n_components=int(self.pca_ens.n_components_), kernel='rbf')
+            X_kpca = self.kpca.fit_transform(data_non_close)
+            
+            #Third
+            umap_reducer = UMAP(n_components=int(self.pca_ens.n_components_), random_state=42)
+            X_umap = umap_reducer.fit_transform(data_non_close)
+
+            
+            
+            self.data_non_close_save = self.pca_ens.fit_transform(data_non_close)
+            print(f'Number of features after Ensemble dim reduction: {self.data_non_close_save.shape[1]}')
+
+            #concat data
+            X_combined = np.concatenate((X_pca, X_kpca, X_umap), axis=1)
+            print(np.shape(X_combined))
+            data = np.concatenate((data_close, self.data_non_close_save), axis=1)
+            print(np.shape(data))
+            exit()
             # plt.figure()
             # plt.figure(figsize=(8, 6))
             # plt.bar(range(self.pca.n_components_), self.pca.explained_variance_ratio_)
@@ -593,7 +613,7 @@ class changePricePredictor:
             #     os.mkdir('pca_plots')
             # plt.savefig(os.path.join(os.getcwd(),'pca_plots',f'{self.crypt_name}_pca_components.png'),dpi=400)
             # plt.close()
-            data = np.concatenate((data_close, self.data_non_close_save), axis=1)
+            
         # data_sorted = np.sort(data[:,0])
         # q1, q3 = np.percentile(data_sorted, [25, 75])
         # iqr_value = q3 - q1

@@ -20,7 +20,7 @@ from fredapi import Fred
 import mwclient
 from transformers import pipeline
 from time import strftime
-from sklearn.decomposition import PCA, KernelPCA
+from sklearn.decomposition import PCA, KernelPCA, FactorAnalysis
 from sampen import sampen2
 import pandas_ta as ta
 import json
@@ -585,24 +585,27 @@ class changePricePredictor:
             X_pca = self.pca_ens.fit_transform(data_non_close)
 
             #Second ensemble metric
-            self.kpca = KernelPCA(n_components=int(self.pca_ens.n_components_), kernel='rbf')
+            self.kpca = KernelPCA(n_components=int(self.pca_ens.n_components_), kernel='rbf', random_state=42)
             X_kpca = self.kpca.fit_transform(data_non_close)
             
             #Third
-            umap_reducer = UMAP(n_components=int(self.pca_ens.n_components_), random_state=42)
-            X_umap = umap_reducer.fit_transform(data_non_close)
+            self.umap_reducer = UMAP(n_components=int(self.pca_ens.n_components_), random_state=42)
+            X_umap = self.umap_reducer.fit_transform(data_non_close)
 
+            #Fourth
+            self.fa = FactorAnalysis(n_components=int(self.pca_ens.n_components_), random_state=42)
+            X_fa = self.fa.fit_transform(data_non_close)
             
-            
-            self.data_non_close_save = self.pca_ens.fit_transform(data_non_close)
-            print(f'Number of features after Ensemble dim reduction: {self.data_non_close_save.shape[1]}')
+            # self.data_non_close_save = self.pca_ens.fit_transform(data_non_close)
+            # print(f'Number of features after Ensemble dim reduction: {self.data_non_close_save.shape[1]}')
 
             #concat data
-            X_combined = np.concatenate((X_pca, X_kpca, X_umap), axis=1)
-            print(np.shape(X_combined))
+            self.data_non_close_save = np.concatenate((X_pca, X_kpca, X_umap, X_fa), axis=1)
             data = np.concatenate((data_close, self.data_non_close_save), axis=1)
             print(np.shape(data))
-            exit()
+            # data = np.concatenate((data_close, self.data_non_close_save), axis=1)
+            # print(np.shape(data))
+            # exit()
             # plt.figure()
             # plt.figure(figsize=(8, 6))
             # plt.bar(range(self.pca.n_components_), self.pca.explained_variance_ratio_)

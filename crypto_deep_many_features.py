@@ -25,6 +25,9 @@ from sampen import sampen2
 import pandas_ta as ta
 import json
 from umap import UMAP
+import warnings
+warnings.simplefilter(action='ignore',category=pd.errors.PerformanceWarning)
+warnings.filterwarnings('ignore')
 """
 TODO: feature engineer - add interest rates
 Potential Correlating Economic Indicators:
@@ -580,6 +583,11 @@ class changePricePredictor:
             data_non_close = self.scaler2.fit_transform(data_non_close)
             
             print(f'Number of features before Ensemble dim reduction: {data_non_close.shape[1]}')
+            
+            #add noise - these means that all values including the final predictions will have noise...
+            noise = np.random.normal(0,np.std(data_non_close, axis=0) * 0.1, data_non_close.shape)
+            data_non_close = data_non_close + noise
+
             #First ensemble metric
             self.pca_ens = PCA(n_components=0.95)
             X_pca = self.pca_ens.fit_transform(data_non_close)

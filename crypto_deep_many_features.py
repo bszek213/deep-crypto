@@ -26,6 +26,7 @@ import pandas_ta as ta
 import json
 from umap import UMAP
 import warnings
+from sklearn.feature_selection import mutual_info_regression
 warnings.simplefilter(action='ignore',category=pd.errors.PerformanceWarning)
 warnings.filterwarnings('ignore')
 """
@@ -609,6 +610,17 @@ class changePricePredictor:
 
             #concat data
             self.data_non_close_save = np.concatenate((X_pca, X_kpca, X_umap, X_fa), axis=1)
+            
+            #SELECT features that matter with the help of labels
+            print(np.shape(self.data_non_close_save))   
+            mi_scores = mutual_info_regression(self.data_non_close_save, data_close)
+            cumulative_mi = np.cumsum(np.sort(mi_scores)[::-1])
+            cumulative_mi /= cumulative_mi[-1]  # Normalize to [0,1]
+            # Select top k features that contribute to 95% of the mutual information
+            k = np.argmax(cumulative_mi >= 0.95) + 1
+            top_k_features = np.argsort(mi_scores)[::-1][:k]
+            selected_features = self.data_non_close_save[:, top_k_features]
+            self.data_non_close_save = selected_features
             data = np.concatenate((data_close, self.data_non_close_save), axis=1)
             print(np.shape(data))
             # data = np.concatenate((data_close, self.data_non_close_save), axis=1)
@@ -753,6 +765,7 @@ class changePricePredictor:
         print(Fore.YELLOW, f"Test Loss: {loss}",Style.RESET_ALL)
         print(self.features)
         self.loss_output = round(loss[0],4)
+        self.error_test = round(loss[1],4)
         return round(loss[0],4)
 
     def predict(self, data):
@@ -900,7 +913,7 @@ class changePricePredictor:
             price_val = tomorrow
             save_price.append(tomorrow) 
         # tomorrow = self.data['Close'].iloc[-1:].values + (self.data['Close'].iloc[-1:].values * self.y_pred)
-        update_crypto_data(filename, self.crypt_name, save_price, self.loss_output)
+        update_crypto_data(filename, self.crypt_name, save_price, self.error_test)
         if os.path.exists('predictions'):
             os.mkdir('predictions')
         # np.savetxt(os.path.join(os.getcwd(),'predictions',f'{self.crypt_name}_prediction.txt'), self.y_pred[0][0], fmt='%.6f')

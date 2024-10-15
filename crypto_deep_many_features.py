@@ -98,9 +98,10 @@ def load_data_from_yaml(filename):
     except FileNotFoundError:
         return {}
     
-def update_crypto_data(filename, crypto_name, price, error):
+def update_crypto_data(filename, crypto_name, n_steps, price, error):
     crypto_data = load_data_from_yaml(filename)
-    crypto_data[crypto_name] = {'price': [float(x) for x in price], 'error': [float(error)], "time": [datetime.now()]}
+    crypto_data[crypto_name][n_steps] = {'price': [float(x) for x in price], 'error': [float(error)], "time": [datetime.now()]}
+    print(crypto_data[crypto_name])
     with open(filename, 'w') as file:
         yaml.dump(crypto_data, file)
 
@@ -697,9 +698,9 @@ class changePricePredictor:
             print('path exists')
         else:
             os.mkdir('model_loc')
-        save_path = os.path.join(save_path,f"{self.crypt_name}_lstm_model.h5")
-        if os.path.exists(save_path):
-            self.model = load_model(save_path)
+        save_path_model = os.path.join(save_path,f"{self.crypt_name}_lstm_model_{self.n_steps}_sequence_length.h5")
+        if os.path.exists(save_path_model):
+            self.model = load_model(save_path_model)
 
             # masker = shap.maskers.Independent(data=X_train)
             # explainer = shap.Explainer(self.model, masker)
@@ -718,8 +719,8 @@ class changePricePredictor:
             tuner = RandomSearch(
                 lambda hp: create_lstm_model(hp, self.n_steps, len(self.features), self.n_outputs),
                 objective='val_mean_absolute_error', #val_loss
-                max_trials=25,
-                directory=f'{self.crypt_name}_lstm_hp',
+                max_trials=10,
+                directory=f'{self.crypt_name}_lstm_hp_{self.n_steps}_sequence_length',
                 project_name='lstm_hyperparameter_tuning',
                 # overwrite=True
             )
@@ -734,7 +735,7 @@ class changePricePredictor:
             self.best_model = tuner.get_best_models(num_models=1)[0]
             #fit tuned model
             init_model_acc = float(10000000.0)
-            for i in tqdm(range(10)):
+            for i in tqdm(range(2)):
                 self.best_model.fit(X_train, y_train, epochs=200, 
                                     validation_data=(X_val, y_val),
                                     callbacks=[early_stopping,reduce_lr])
@@ -757,8 +758,8 @@ class changePricePredictor:
                 print('path exists')
             else:
                 os.mkdir('model_loc')
-            save_path = os.path.join(save_path,f"{self.crypt_name}_lstm_model.h5")
-            self.best_model.save(save_path)
+            # save_path = os.path.join(save_path_model,f"{self.crypt_name}_lstm_model_{self.n_steps}_sequence_length.h5")
+            self.best_model.save(save_path_model)
 
     def evaluate_model(self, X_test, y_test):
         loss = self.model.evaluate(X_test, y_test)
@@ -883,13 +884,13 @@ class changePricePredictor:
         # plt.plot(last_week.index[-2:].to_numpy(), last_week[-2:].to_numpy(), color='blue')  # Connect the last two points with a blue line
         plt.xlabel('Date',fontweight='bold')
         plt.ylabel('Price',fontweight='bold')
-        plt.title(f'{self.crypt_name} price for the next {len((self.y_pred))} days',fontweight='bold')
+        plt.title(f'{self.crypt_name} price for the next {len((self.y_pred))} days {self.n_steps}_sequence_length',fontweight='bold')
         plt.xticks(rotation=45)
         plt.legend()
         plt.tight_layout()
         if not os.path.exists('figures'):
             os.mkdir('figures')
-        save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_future_price.png')
+        save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_future_price_{self.n_steps}_sequence_length.png')
         plt.savefig(save_path,dpi=350)
         plt.close()
 
@@ -913,7 +914,7 @@ class changePricePredictor:
             price_val = tomorrow
             save_price.append(tomorrow) 
         # tomorrow = self.data['Close'].iloc[-1:].values + (self.data['Close'].iloc[-1:].values * self.y_pred)
-        update_crypto_data(filename, self.crypt_name, save_price, self.error_test)
+        update_crypto_data(filename, self.crypt_name, self.n_steps, save_price, self.error_test)
         if os.path.exists('predictions'):
             os.mkdir('predictions')
         # np.savetxt(os.path.join(os.getcwd(),'predictions',f'{self.crypt_name}_prediction.txt'), self.y_pred[0][0], fmt='%.6f')
@@ -923,8 +924,8 @@ class changePricePredictor:
         # self.rolling_95_pct_ci()
         with open('crypto_pre_error.yaml', 'r') as file:
             data = yaml.safe_load(file)
-        time_output = [data[self.crypt_name]['time'][0] + timedelta(days=i) for i in range(1, len(data[self.crypt_name]['price']))]
-        time_output.insert(0, data[self.crypt_name]['time'][0])
+        time_output = [data[self.crypt_name][self.n_steps]['time'][0] + timedelta(days=i) for i in range(1, len(data[self.crypt_name]['price']))]
+        time_output.insert(0, data[self.crypt_name][self.n_steps]['time'][0])
         #Remove everything except year month and day
         time_output = [date.date() for date in time_output]
         self.data.index = pd.to_datetime(self.data.index.date)
@@ -932,7 +933,7 @@ class changePricePredictor:
         #find matching indices and get error
         matching_indices = self.data.index[self.data.index.to_series().dt.floor('D').isin(time_output)]
         matching_close_prices = self.data['Close'][matching_indices]
-        actual_close_prices = data[self.crypt_name]['price'][0:len(matching_close_prices)]
+        actual_close_prices = data[self.crypt_name][self.n_steps]['price'][0:len(matching_close_prices)]
         mape_error = mean_absolute_percentage_error(matching_close_prices.values,
                                                     actual_close_prices)
         #check direction probabilities
@@ -991,7 +992,7 @@ class changePricePredictor:
         plt.fill_between(ci_upper.index.to_numpy()[look_back:], ci_upper.to_numpy()[look_back:], 
                          ci_lower.to_numpy()[look_back:], 
                          color='lightblue', alpha=0.5, label='rolling 95% ci')
-        plt.plot(time_output,data[self.crypt_name]['price'],marker='.',markersize=10,label='Predicted')
+        plt.plot(time_output,data[self.crypt_name][f'price_{self.n_steps}'],marker='.',markersize=10,label='Predicted')
         plt.plot(self.data.index[look_back:].to_numpy(),self.data['Close'].iloc[look_back:].to_numpy(),marker='.',markersize=10,label='Actual')
         plt.title(f'{self.crypt_name} MAPE: {round(mape_error*100,3)}% | data length: {len(self.data["Close"])} samples')
         plt.xlabel('Date')
@@ -1001,7 +1002,7 @@ class changePricePredictor:
         plt.tight_layout()
         if not os.path.exists('figures'):
             os.mkdir('figures')
-        save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_predicted_vs_actual.png')
+        save_path = os.path.join(os.getcwd(),'figures',f'{self.crypt_name}_predicted_vs_actual_{self.n_steps}_sequence_length.png')
         plt.savefig(save_path,dpi=350)
         plt.close()
 
@@ -1009,7 +1010,6 @@ class changePricePredictor:
         if os.path.exists('crypto_mape.yaml'):
             with open("crypto_mape.yaml", 'r') as file:
                 data = yaml.safe_load(file)
-
             # Filter out data points with errors above 1
             filtered_data = {crypt: error for crypt, error in data.items() if error[0] <= 1}
             # Extract crypto names and errors
@@ -1044,7 +1044,6 @@ class changePricePredictor:
         error_val = []
         sample_entropy_list = []
         fractal_list = []
-
 
         #MAPE vs. ERR correlate
         for key, value in err_data.items():
@@ -1178,10 +1177,10 @@ class changePricePredictor:
     def run_analysis(self):
         if os.path.exists('crypto_pre_error.yaml') and argv[2] == "test":
             self.check_output()
-            self.plot_error()
+            # self.plot_error() #TODO: work on this
         elif argv[2] == "correlate":
             self.plot_pct_change_all_cryptos()
-            self.correlate_len_error()
+            # self.correlate_len_error() #TODO: work on this
         else:
             # Prepare data for training
             X_train, y_train, X_val, y_val, X_test, y_test = self.prepare_data(self.data)
@@ -1201,14 +1200,15 @@ def main():
 
         for name in tqdm(sorted(list_crypt)):
             try:
-                changePricePredictor(crypt=name,
-                                    n_features=10, 
-                                    n_steps=128, 
-                                    n_outputs=7, 
-                                    n_epochs=500, 
-                                    batch_size=256).run_analysis()
-                if argv[2] == "correlate":
-                    break
+                for step in [7, 14, 21, 30, 90]:
+                    changePricePredictor(crypt=name,
+                                        n_features=10, 
+                                        n_steps=step, 
+                                        n_outputs=7, 
+                                        n_epochs=500, 
+                                        batch_size=256).run_analysis()
+                    if argv[2] == "correlate":
+                        break
             except Exception as e:
                 print(Fore.RED,Style.BRIGHT,f'{name} did not complete: {e}',Style.RESET_ALL)
 
